@@ -15,6 +15,7 @@ import {
   Filter,
   Check,
   Building,
+  CalendarX,
 } from 'lucide-react';
 
 export default function AttendanceManagement() {
@@ -54,6 +55,13 @@ export default function AttendanceManagement() {
     status: 'PRESENT',
     notes: '',
   });
+
+  // Auto-Mark Absent Modal (Module 10)
+  const [showAutoAbsentModal, setShowAutoAbsentModal] = useState(false);
+  const [autoAbsentDate, setAutoAbsentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [autoAbsentDryRun, setAutoAbsentDryRun] = useState(true);
+  const [autoAbsentLoading, setAutoAbsentLoading] = useState(false);
+  const [autoAbsentResult, setAutoAbsentResult] = useState(null);
 
   // Messages
   const [error, setError] = useState('');
@@ -197,6 +205,31 @@ export default function AttendanceManagement() {
     }
   };
 
+  // Handle Automatic Absent Marking (Module 10)
+  const handleRunAutoAbsent = async (e) => {
+    e.preventDefault();
+    setAutoAbsentLoading(true);
+    setAutoAbsentResult(null);
+    setError('');
+    try {
+      const res = await attendanceApi.autoAbsent({
+        date: autoAbsentDate,
+        dry_run: autoAbsentDryRun,
+      });
+      setAutoAbsentResult(res);
+      if (!autoAbsentDryRun) {
+        setSuccessMsg(res.message);
+        setTimeout(() => setSuccessMsg(''), 5000);
+        fetchOrganizationAttendance();
+        fetchTodayAndSummary();
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to execute automatic absent marking');
+    } finally {
+      setAutoAbsentLoading(false);
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'PRESENT':
@@ -322,6 +355,15 @@ export default function AttendanceManagement() {
             </div>
 
             <div className="time-tile">
+              <span className="time-tile-label">Overtime</span>
+              <span className="time-tile-value highlight">
+                {hasCheckedOut && todayRecord.overtime_hours && Number(todayRecord.overtime_hours) > 0
+                  ? `${todayRecord.overtime_hours} hrs`
+                  : '0.00 hrs'}
+              </span>
+            </div>
+
+            <div className="time-tile">
               <span className="time-tile-label">Status</span>
               <span className="time-tile-value">
                 {todayRecord ? getStatusBadge(todayRecord.status) : 'PENDING'}
@@ -391,7 +433,8 @@ export default function AttendanceManagement() {
                 <p>
                   Check-in: {new Date(todayRecord.check_in).toLocaleTimeString()} |
                   Check-out: {new Date(todayRecord.check_out).toLocaleTimeString()} |
-                  Total: {todayRecord.working_hours} hours ({todayRecord.status}).
+                  Total: {todayRecord.working_hours} hours ({todayRecord.status})
+                  {Number(todayRecord.overtime_hours) > 0 ? ` | Overtime: ${todayRecord.overtime_hours} hrs` : ''}.
                 </p>
               </div>
             </div>
@@ -436,6 +479,15 @@ export default function AttendanceManagement() {
             <div className="stat-content">
               <span className="stat-label">Total Hours</span>
               <span className="stat-value">{summary.total_hours} hrs</span>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon-wrapper icon-purple">
+              <Clock size={22} />
+            </div>
+            <div className="stat-content">
+              <span className="stat-label">Total Overtime</span>
+              <span className="stat-value">{summary.total_overtime_hours ? `${summary.total_overtime_hours} hrs` : '0.00 hrs'}</span>
             </div>
           </div>
         </div>
@@ -489,6 +541,7 @@ export default function AttendanceManagement() {
                       <th>Check In</th>
                       <th>Check Out</th>
                       <th>Working Hours</th>
+                      <th>Overtime</th>
                       <th>Status</th>
                       <th>Notes</th>
                     </tr>
@@ -522,6 +575,11 @@ export default function AttendanceManagement() {
                             ? `${rec.working_hours} hrs`
                             : '-'}
                         </td>
+                        <td>
+                          {rec.overtime_hours !== null && rec.overtime_hours !== undefined && Number(rec.overtime_hours) > 0
+                            ? `${rec.overtime_hours} hrs`
+                            : '-'}
+                        </td>
                         <td>{getStatusBadge(rec.status)}</td>
                         <td>
                           <span className="notes-text">{rec.notes || '-'}</span>
@@ -545,22 +603,35 @@ export default function AttendanceManagement() {
                   Inspect and manage attendance across all team members
                 </p>
               </div>
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  setManualData({
-                    employee_id: employeesList[0]?.id || '',
-                    date: new Date().toISOString().split('T')[0],
-                    check_in: '09:00',
-                    check_out: '17:30',
-                    status: 'PRESENT',
-                    notes: '',
-                  });
-                  setShowManualModal(true);
-                }}
-              >
-                <PlusCircle size={16} /> Manual Attendance Entry
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setAutoAbsentDate(new Date().toISOString().split('T')[0]);
+                    setAutoAbsentDryRun(true);
+                    setAutoAbsentResult(null);
+                    setShowAutoAbsentModal(true);
+                  }}
+                >
+                  <CalendarX size={16} /> Auto-Mark Absent
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setManualData({
+                      employee_id: employeesList[0]?.id || '',
+                      date: new Date().toISOString().split('T')[0],
+                      check_in: '09:00',
+                      check_out: '17:30',
+                      status: 'PRESENT',
+                      notes: '',
+                    });
+                    setShowManualModal(true);
+                  }}
+                >
+                  <PlusCircle size={16} /> Manual Attendance Entry
+                </button>
+              </div>
             </div>
 
             {/* Filters */}
@@ -637,6 +708,7 @@ export default function AttendanceManagement() {
                       <th>Check In</th>
                       <th>Check Out</th>
                       <th>Working Hours</th>
+                      <th>Overtime</th>
                       <th>Status</th>
                       <th>Notes</th>
                     </tr>
@@ -669,6 +741,11 @@ export default function AttendanceManagement() {
                         <td>
                           {rec.working_hours !== null && rec.working_hours !== undefined
                             ? `${rec.working_hours} hrs`
+                            : '-'}
+                        </td>
+                        <td>
+                          {rec.overtime_hours !== null && rec.overtime_hours !== undefined && Number(rec.overtime_hours) > 0
+                            ? `${rec.overtime_hours} hrs`
                             : '-'}
                         </td>
                         <td>{getStatusBadge(rec.status)}</td>
@@ -792,6 +869,100 @@ export default function AttendanceManagement() {
                 </button>
                 <button type="submit" className="btn btn-primary">
                   Save Attendance
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- AUTO-MARK ABSENT MODAL (HR/ADMIN - MODULE 10) --- */}
+      {showAutoAbsentModal && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3>Automatic Absent Marking (Module 10)</h3>
+              <button
+                className="modal-close-btn"
+                onClick={() => setShowAutoAbsentModal(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleRunAutoAbsent} className="modal-body">
+              <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem', lineHeight: '1.4' }}>
+                Automatically detects active employees with no attendance record and no approved leave on the selected completed workday, and records them as <strong>ABSENT</strong>. Weekends and configured public holidays are safely protected.
+              </p>
+
+              <div className="form-group">
+                <label>Workday Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={autoAbsentDate}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setAutoAbsentDate(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem' }}>
+                <input
+                  type="checkbox"
+                  id="autoAbsentDryRun"
+                  checked={autoAbsentDryRun}
+                  onChange={(e) => setAutoAbsentDryRun(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="autoAbsentDryRun" style={{ margin: 0, cursor: 'pointer', fontWeight: 500, fontSize: '0.875rem' }}>
+                  Dry Run Mode (Preview counts without modifying database)
+                </label>
+              </div>
+
+              {autoAbsentResult && (
+                <div
+                  style={{
+                    marginTop: '1rem',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '6px',
+                    backgroundColor: autoAbsentResult.dry_run ? '#eff6ff' : '#f0fdf4',
+                    border: `1px solid ${autoAbsentResult.dry_run ? '#bfdbfe' : '#bbf7d0'}`,
+                    color: autoAbsentResult.dry_run ? '#1e40af' : '#166534',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{autoAbsentResult.message}</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.25rem' }}>
+                    <span>Target Date: <strong>{autoAbsentResult.target_date}</strong></span>
+                    <span>Total Evaluated: <strong>{autoAbsentResult.total_employees_evaluated}</strong></span>
+                    <span>Already Logged: <strong>{autoAbsentResult.skipped_already_logged}</strong></span>
+                    <span>On Leave: <strong>{autoAbsentResult.skipped_on_leave}</strong></span>
+                    <span>Skipped (Non-Workday): <strong>{autoAbsentResult.skipped_non_workday ? 'Yes' : 'No'}</strong></span>
+                    <span>
+                      {autoAbsentResult.dry_run ? 'Would Mark Absent' : 'Marked Absent'}: <strong>{autoAbsentResult.marked_absent_count}</strong>
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="modal-footer" style={{ marginTop: '1.5rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowAutoAbsentModal(false)}
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  className={`btn ${autoAbsentDryRun ? 'btn-secondary' : 'btn-primary'}`}
+                  disabled={autoAbsentLoading}
+                >
+                  {autoAbsentLoading
+                    ? 'Processing...'
+                    : autoAbsentDryRun
+                    ? 'Run Preview (Dry Run)'
+                    : 'Confirm & Mark Absent'}
                 </button>
               </div>
             </form>

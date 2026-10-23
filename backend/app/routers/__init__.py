@@ -5,6 +5,7 @@ from app.routers.leaves import router as leaves_router
 from app.routers.payroll import router as payroll_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.notifications import router as notifications_router
+from app.routers.users import router as users_router
 
 __all__ = [
     "auth_router",
@@ -14,4 +15,5 @@ __all__ = [
     "payroll_router",
     "dashboard_router",
     "notifications_router",
+    "users_router",
 ]

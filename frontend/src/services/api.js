@@ -121,6 +121,15 @@ export const attendanceApi = {
       method: 'PUT',
       body: JSON.stringify(updateData),
     }),
+  autoAbsent: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.date) searchParams.append('target_date', params.date);
+    if (params.dry_run !== undefined) searchParams.append('dry_run', params.dry_run);
+    const query = searchParams.toString();
+    return apiRequest(`/attendance/auto-absent${query ? `?${query}` : ''}`, {
+      method: 'POST',
+    });
+  },
 };
 
 // Module 4: Leave Management APIs
@@ -158,6 +167,30 @@ export const leaveApi = {
     apiRequest(`/leaves/${id}/cancel`, {
       method: 'PUT',
     }),
+  // Module 11: Leave Policies & Balances
+  getPolicies: () => apiRequest('/leaves/policies'),
+  createPolicy: (policyData) =>
+    apiRequest('/leaves/policies', {
+      method: 'POST',
+      body: JSON.stringify(policyData),
+    }),
+  updatePolicy: (policyId, policyData) =>
+    apiRequest(`/leaves/policies/${policyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(policyData),
+    }),
+  getMyBalances: () => apiRequest('/leaves/balances/me'),
+  getBalances: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.employee_id) searchParams.append('employee_id', params.employee_id);
+    const query = searchParams.toString();
+    return apiRequest(`/leaves/balances${query ? `?${query}` : ''}`);
+  },
+  initializeBalances: (data = {}) =>
+    apiRequest('/leaves/balances/initialize', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // Module 5: Payroll Management APIs
@@ -190,6 +223,9 @@ export const payrollApi = {
     return apiRequest(`/payroll${query ? `?${query}` : ''}`);
   },
   getById: (id) => apiRequest(`/payroll/${id}`),
+  getBreakdown: (id) => apiRequest(`/payroll/${id}/breakdown`),
+  getMonthlySummary: (month, year) =>
+    apiRequest(`/payroll/monthly-summary?month=${month}&year=${year}`),
   update: (id, updateData) =>
     apiRequest(`/payroll/${id}`, {
       method: 'PUT',
@@ -237,6 +273,47 @@ export const notificationApi = {
     apiRequest('/notifications/broadcast', {
       method: 'POST',
       body: JSON.stringify(broadcastData),
+    }),
+};
+
+// Module 13: Admin Controls & User Management APIs
+export const userApi = {
+  list: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.q) searchParams.append('q', params.q);
+    if (params.role && params.role !== 'ALL') searchParams.append('role', params.role);
+    if (params.is_active !== undefined && params.is_active !== null && params.is_active !== 'ALL') {
+      searchParams.append('is_active', params.is_active);
+    }
+    if (params.skip) searchParams.append('skip', params.skip);
+    if (params.limit) searchParams.append('limit', params.limit);
+    const query = searchParams.toString();
+    return apiRequest(`/users${query ? `?${query}` : ''}`);
+  },
+  getById: (id) => apiRequest(`/users/${id}`),
+  create: (userData) =>
+    apiRequest('/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    }),
+  update: (id, userData) =>
+    apiRequest(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    }),
+  updateRole: (id, role) =>
+    apiRequest(`/users/${id}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    }),
+  updateStatus: (id, isActive) =>
+    apiRequest(`/users/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_active: isActive }),
+    }),
+  delete: (id) =>
+    apiRequest(`/users/${id}`, {
+      method: 'DELETE',
     }),
 };
 

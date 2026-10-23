@@ -54,6 +54,11 @@ def test_batch2():
     # 4.2 Valid Leave Application (Dynamic future date to avoid overlapping on repeated runs)
     db = SessionLocal()
     from sqlalchemy import func
+    from app.models.leave import LeaveBalance
+    ann_bal = db.query(LeaveBalance).filter(LeaveBalance.employee_id == emp_id, LeaveBalance.leave_type == LeaveType.ANNUAL).first()
+    if ann_bal and ann_bal.remaining_days < Decimal("3.00"):
+        ann_bal.remaining_days = Decimal("15.00")
+        db.commit()
     max_leave_date = db.query(func.max(Leave.end_date)).filter(Leave.employee_id == emp_id).scalar()
     db.close()
     base_ref = max_leave_date if (max_leave_date and max_leave_date > today) else today

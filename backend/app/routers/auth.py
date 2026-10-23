@@ -23,10 +23,28 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
             detail="A user with this email address already exists",
         )
 
+    # Determine username
+    username = user_in.username
+    if not username:
+        base_username = user_in.email.split("@")[0].lower()
+        username = base_username
+        suffix = 1
+        while db.query(User).filter(User.username == username).first():
+            username = f"{base_username}{suffix}"
+            suffix += 1
+    else:
+        existing_username = db.query(User).filter(User.username == username).first()
+        if existing_username:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Username '{username}' is already taken",
+            )
+
     # Validate role
     role = user_in.role if user_in.role else UserRole.EMPLOYEE
 
     new_user = User(
+        username=username,
         email=user_in.email,
         password_hash=hash_password(user_in.password),
         role=role,
@@ -38,10 +56,12 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 
     return UserResponse(
         id=new_user.id,
+        username=new_user.username,
         email=new_user.email,
         role=new_user.role,
         is_active=new_user.is_active,
         created_at=new_user.created_at,
+        updated_at=new_user.updated_at,
         employee_id=None,
         full_name=None,
     )
@@ -75,6 +95,7 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         "sub": str(user.id),
         "role": user.role.value,
         "email": user.email,
+        "username": user.username,
     }
     token = create_access_token(token_payload, expires_delta=access_token_expires)
 
@@ -84,6 +105,7 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         role=user.role,
         user_id=user.id,
         email=user.email,
+        username=user.username,
         employee_id=employee_id,
         full_name=full_name,
     )
@@ -97,11 +119,15 @@ def get_me(
     employee = db.query(Employee).filter(Employee.user_id == current_user.id).first()
     return UserResponse(
         id=current_user.id,
+        username=current_user.username,
         email=current_user.email,
         role=current_user.role,
         is_active=current_user.is_active,
         created_at=current_user.created_at,
+        updated_at=current_user.updated_at,
         employee_id=employee.id if employee else None,
         full_name=employee.full_name if employee else None,
+        department=employee.department if employee else None,
+        designation=employee.designation if employee else None,
+        employee_status=employee.status.value if employee else None,
     )
-

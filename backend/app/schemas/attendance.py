@@ -20,6 +20,7 @@ class AttendanceManualRecord(BaseModel):
     check_in: Optional[datetime] = None
     check_out: Optional[datetime] = None
     working_hours: Optional[Decimal] = None
+    overtime_hours: Decimal = Decimal("0.00")
     status: AttendanceStatus = AttendanceStatus.PRESENT
     notes: Optional[str] = None
 
@@ -28,6 +29,7 @@ class AttendanceUpdate(BaseModel):
     check_in: Optional[datetime] = None
     check_out: Optional[datetime] = None
     working_hours: Optional[Decimal] = None
+    overtime_hours: Optional[Decimal] = None
     status: Optional[AttendanceStatus] = None
     notes: Optional[str] = None
 
@@ -40,6 +42,7 @@ class AttendanceResponse(BaseModel):
     check_in: Optional[datetime] = None
     check_out: Optional[datetime] = None
     working_hours: Optional[Decimal] = None
+    overtime_hours: Decimal = Decimal("0.00")
     status: AttendanceStatus
     notes: Optional[str] = None
     created_at: datetime
@@ -54,4 +57,18 @@ class AttendanceSummary(BaseModel):
     half_days: int
     absent_days: int
     total_hours: Decimal
+    total_overtime_hours: Decimal = Decimal("0.00")
+
+
+class AutoAbsentResponse(BaseModel):
+    target_date: date
+    dry_run: bool
+    marked_count: int
+    marked_absent_count: int = 0
+    message: str
+    total_employees_evaluated: int = 0
+    skipped_already_logged: int = 0
+    skipped_on_leave: int = 0
+    skipped_non_workday: bool = False
+
 

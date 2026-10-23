@@ -9,6 +9,7 @@ import LeaveManagement from './components/LeaveManagement';
 import PayrollManagement from './components/PayrollManagement';
 import NotificationCenter from './components/NotificationCenter';
 import MyProfile from './components/MyProfile';
+import UserManagement from './components/UserManagement';
 
 function MainApp() {
   const { isAuthenticated, loading, role } = useAuth();
@@ -47,6 +48,7 @@ function MainApp() {
         {activeTab === 'leaves' && <LeaveManagement />}
         {activeTab === 'payroll' && <PayrollManagement />}
         {activeTab === 'notifications' && <NotificationCenter setActiveTab={setActiveTab} />}
+        {activeTab === 'users' && role === 'ADMIN' && <UserManagement />}
         {activeTab === 'profile' && <MyProfile />}
       </main>
       <footer className="app-footer">

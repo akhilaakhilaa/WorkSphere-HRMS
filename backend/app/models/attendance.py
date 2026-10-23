@@ -37,6 +37,7 @@ class Attendance(Base):
     check_in = Column(DateTime, nullable=True)
     check_out = Column(DateTime, nullable=True)
     working_hours = Column(Numeric(5, 2), nullable=True)
+    overtime_hours = Column(Numeric(5, 2), nullable=False, default=0)
     status = Column(
         SQLEnum(AttendanceStatus, values_callable=lambda obj: [e.value for e in obj]),
         default=AttendanceStatus.PRESENT,

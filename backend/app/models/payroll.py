@@ -43,10 +43,15 @@ class Payroll(Base):
     month = Column(Integer, nullable=False)
     year = Column(Integer, nullable=False)
     base_salary = Column(Numeric(12, 2), nullable=False)
+    hra = Column(Numeric(12, 2), default=0.00, nullable=False)
+    transport_allowance = Column(Numeric(12, 2), default=0.00, nullable=False)
+    medical_allowance = Column(Numeric(12, 2), default=0.00, nullable=False)
     allowances = Column(Numeric(12, 2), default=0.00, nullable=False)
     bonuses = Column(Numeric(12, 2), default=0.00, nullable=False)
-    deductions = Column(Numeric(12, 2), default=0.00, nullable=False)
+    gross_salary = Column(Numeric(12, 2), default=0.00, nullable=False)
+    provident_fund = Column(Numeric(12, 2), default=0.00, nullable=False)
     tax_deduction = Column(Numeric(12, 2), default=0.00, nullable=False)
+    deductions = Column(Numeric(12, 2), default=0.00, nullable=False)
     net_salary = Column(Numeric(12, 2), nullable=False)
     payment_status = Column(
         SQLEnum(PaymentStatus, values_callable=lambda obj: [e.value for e in obj]),

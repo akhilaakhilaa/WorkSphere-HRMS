@@ -21,7 +21,9 @@ def list_employees(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+    require_roles([UserRole.ADMIN, UserRole.HR])
+),
 ):
     """
     List and search employees.
@@ -102,13 +104,24 @@ def get_employee(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get an employee by ID."""
+    """Get an employee by ID with role-based access control."""
+
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
+
     if not emp:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Employee with ID {employee_id} not found",
         )
+
+    # HR and ADMIN can view any employee.
+    if current_user.role not in [UserRole.ADMIN, UserRole.HR]:
+        # Employees can view only their own profile.
+        if emp.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not allowed to view this employee's details",
+            )
 
     return EmployeeResponse(
         id=emp.id,

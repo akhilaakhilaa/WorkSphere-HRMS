@@ -1223,3 +1223,38 @@ body {
 .loading-card {
   text-align: center;
 }
+
+/* Module 12: Payslip Print Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-payslip,
+  #printable-payslip * {
+    visibility: visible;
+  }
+  #printable-payslip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 24px;
+    background: #ffffff;
+    box-shadow: none;
+  }
+  .modal-backdrop {
+    background: transparent !important;
+  }
+  .modal-card {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  .modal-header,
+  .modal-footer,
+  .modal-close-btn {
+    display: none !important;
+  }
+}

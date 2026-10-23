@@ -15,6 +15,7 @@ from app.schemas.attendance import (
     AttendanceResponse,
     AttendanceSummary,
     AttendanceUpdate,
+    AutoAbsentResponse,
     CheckInRequest,
     CheckOutRequest,
 )
@@ -32,6 +33,7 @@ def _to_attendance_response(att: Attendance) -> AttendanceResponse:
         check_in=att.check_in,
         check_out=att.check_out,
         working_hours=att.working_hours,
+        overtime_hours=att.overtime_hours,
         status=att.status,
         notes=att.notes,
         created_at=att.created_at,
@@ -50,24 +52,34 @@ def check_in(
     Prevents duplicate check-ins.
     """
     today = date.today()
+
     record = (
         db.query(Attendance)
-        .filter(Attendance.employee_id == employee.id, Attendance.date == today)
+        .filter(
+            Attendance.employee_id == employee.id,
+            Attendance.date == today,
+        )
         .first()
     )
 
+    # Prevent duplicate check-ins
     if record and record.check_in:
         time_str = record.check_in.strftime("%H:%M:%S")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Duplicate check-in: You have already checked in today at {time_str}.",
+            detail=(
+                "Duplicate check-in: You have already checked in "
+                f"today at {time_str}."
+            ),
         )
 
     now = datetime.now()
 
     if record:
+        # Reuse an existing record if one exists without a check-in
         record.check_in = now
         record.status = AttendanceStatus.PRESENT
+
         if check_in_data and check_in_data.notes:
             record.notes = (
                 f"{record.notes}\nCheck-in note: {check_in_data.notes}"
@@ -84,16 +96,23 @@ def check_in(
         )
         db.add(record)
 
-    # Attendance Alert: Notify employee of check-in and late arrival if applicable
+    # Notify the employee about check-in and late arrival
     if employee.user_id:
-        is_late = now.hour > 9 or (now.hour == 9 and now.minute > 30)
+        is_late = now.hour > 9 or (
+            now.hour == 9 and now.minute > 30
+        )
         time_str = now.strftime("%I:%M %p")
+
         if is_late:
             notify_user(
                 db,
                 user_id=employee.user_id,
                 title="Late Attendance Alert",
-                message=f"You checked in at {time_str} on {today}, which is recorded after the standard 09:30 AM shift start.",
+                message=(
+                    f"You checked in at {time_str} on {today}, "
+                    "which is recorded after the standard "
+                    "09:30 AM shift start."
+                ),
                 notif_type=NotificationType.ATTENDANCE,
                 link="/attendance",
             )
@@ -102,13 +121,17 @@ def check_in(
                 db,
                 user_id=employee.user_id,
                 title="Attendance Checked In",
-                message=f"You successfully checked in today ({today}) at {time_str}.",
+                message=(
+                    f"You successfully checked in today ({today}) "
+                    f"at {time_str}."
+                ),
                 notif_type=NotificationType.ATTENDANCE,
                 link="/attendance",
             )
 
     db.commit()
     db.refresh(record)
+
     return _to_attendance_response(record)
 
 
@@ -119,45 +142,57 @@ def check_out(
     db: Session = Depends(get_db),
 ):
     """
-    Check-out for the current authenticated employee for today.
-    Prevents invalid check-outs (must check in first, cannot check out twice).
-    Calculates working hours and updates status (PRESENT, HALF_DAY).
+    Check-out for the current authenticated employee.
+    Calculates working hours, overtime, and attendance status.
     """
     today = date.today()
+
     record = (
         db.query(Attendance)
-        .filter(Attendance.employee_id == employee.id, Attendance.date == today)
+        .filter(
+            Attendance.employee_id == employee.id,
+            Attendance.date == today,
+        )
         .first()
     )
 
     if not record or not record.check_in:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid check-out: No check-in record found for today. You must check in first.",
+            detail="You must check in before checking out.",
         )
 
     if record.check_out:
-        time_str = record.check_out.strftime("%H:%M:%S")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid check-out: You have already checked out today at {time_str}.",
+            detail="You have already checked out today.",
         )
 
     now = datetime.now()
     delta = now - record.check_in
-    hours = max(Decimal("0.00"), round(Decimal(delta.total_seconds()) / Decimal(3600.0), 2))
 
-    # Determine status according to hours worked
-    # >= 8.0 hours is PRESENT, >= 4.0 hours is HALF_DAY, else HALF_DAY
+    hours = max(
+        Decimal("0.00"),
+        round(
+            Decimal(str(delta.total_seconds())) / Decimal("3600"),
+            2,
+        ),
+    )
+
+    standard_hours = Decimal("8.00")
+    overtime_hours = max(
+        Decimal("0.00"),
+        hours - standard_hours,
+    )
+
     if hours >= Decimal("8.00"):
         new_status = AttendanceStatus.PRESENT
-    elif hours >= Decimal("4.00"):
-        new_status = AttendanceStatus.HALF_DAY
     else:
         new_status = AttendanceStatus.HALF_DAY
 
     record.check_out = now
     record.working_hours = hours
+    record.overtime_hours = overtime_hours
     record.status = new_status
 
     if check_out_data and check_out_data.notes:
@@ -167,31 +202,27 @@ def check_out(
             else check_out_data.notes
         )
 
-    # Attendance Alert: Notify employee of check-out and short hours if applicable
     if employee.user_id:
         time_str = now.strftime("%I:%M %p")
-        if hours < Decimal("8.00"):
-            notify_user(
-                db,
-                user_id=employee.user_id,
-                title="Short Hours Attendance Alert",
-                message=f"You checked out at {time_str} with {hours} working hours (Standard is 8.0 hrs). Status marked as {new_status.value}.",
-                notif_type=NotificationType.ATTENDANCE,
-                link="/attendance",
-            )
-        else:
-            notify_user(
-                db,
-                user_id=employee.user_id,
-                title="Attendance Checked Out",
-                message=f"You checked out today at {time_str}. Total hours: {hours} hrs (Status: {new_status.value}).",
-                notif_type=NotificationType.ATTENDANCE,
-                link="/attendance",
-            )
+
+        notify_user(
+            db,
+            user_id=employee.user_id,
+            title="Attendance Checked Out",
+            message=(
+                f"You checked out today at {time_str}. "
+                f"Total hours: {hours} hrs. "
+                f"Overtime: {overtime_hours} hrs."
+            ),
+            notif_type=NotificationType.ATTENDANCE,
+            link="/attendance",
+        )
 
     db.commit()
     db.refresh(record)
+
     return _to_attendance_response(record)
+
 
 
 @router.get("/today", response_model=Optional[AttendanceResponse])
@@ -263,6 +294,7 @@ def get_attendance_summary(
     half_days = sum(1 for r in records if r.status == AttendanceStatus.HALF_DAY)
     absent_days = sum(1 for r in records if r.status == AttendanceStatus.ABSENT)
     total_hours = sum((r.working_hours or Decimal("0.00")) for r in records)
+    total_overtime = sum((r.overtime_hours or Decimal("0.00")) for r in records)
 
     return AttendanceSummary(
         total_records=total_records,
@@ -270,6 +302,7 @@ def get_attendance_summary(
         half_days=half_days,
         absent_days=absent_days,
         total_hours=round(total_hours, 2),
+        total_overtime_hours=round(total_overtime, 2),
     )
 
 
@@ -329,10 +362,17 @@ def manual_attendance_record(
         delta = rec_in.check_out - rec_in.check_in
         working_hours = round(Decimal(delta.total_seconds()) / Decimal(3600.0), 2)
 
+    overtime_hours = rec_in.overtime_hours
+    if (overtime_hours is None or overtime_hours == Decimal("0.00")) and working_hours is not None:
+        overtime_hours = max(Decimal("0.00"), working_hours - Decimal("8.00"))
+    elif overtime_hours is None:
+        overtime_hours = Decimal("0.00")
+
     if existing:
         existing.check_in = rec_in.check_in
         existing.check_out = rec_in.check_out
         existing.working_hours = working_hours
+        existing.overtime_hours = overtime_hours
         existing.status = rec_in.status
         existing.notes = rec_in.notes
         res_rec = existing
@@ -343,6 +383,7 @@ def manual_attendance_record(
             check_in=rec_in.check_in,
             check_out=rec_in.check_out,
             working_hours=working_hours,
+            overtime_hours=overtime_hours,
             status=rec_in.status,
             notes=rec_in.notes,
         )
@@ -405,6 +446,11 @@ def update_attendance_record(
         delta = record.check_out - record.check_in
         record.working_hours = round(Decimal(delta.total_seconds()) / Decimal(3600.0), 2)
 
+    if upd.overtime_hours is not None:
+        record.overtime_hours = upd.overtime_hours
+    elif record.working_hours is not None:
+        record.overtime_hours = max(Decimal("0.00"), record.working_hours - Decimal("8.00"))
+
     if record.employee and record.employee.user_id:
         notify_user(
             db,
@@ -418,5 +464,35 @@ def update_attendance_record(
     db.commit()
     db.refresh(record)
     return _to_attendance_response(record)
+
+
+@router.post("/auto-absent", response_model=AutoAbsentResponse)
+def trigger_auto_absent_marking(
+    target_date: Optional[date] = Query(None, description="Completed workday to mark absent (defaults to completed workday)"),
+    dry_run: bool = Query(True, description="Preview absent marking without committing changes"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.ADMIN, UserRole.HR])),
+):
+    """
+    Manually trigger or preview automatic absent marking for a completed workday.
+    - Restricted to ADMIN and HR roles.
+    - dry_run=True previews the number of employees who would be marked absent.
+    - Automatically skips employees with existing attendance or approved leave.
+    - Prevents duplicates and excludes weekends and configured public holidays.
+    """
+    from app.attendance_tasks import get_completed_workday, mark_absent_employees
+
+    effective_date = target_date if target_date else get_completed_workday()
+
+    try:
+        details = mark_absent_employees(work_date=effective_date, dry_run=dry_run, return_details=True)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return AutoAbsentResponse(**details)
+
 
 

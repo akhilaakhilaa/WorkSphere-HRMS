@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { leaveApi } from '../services/api';
+import { leaveApi, employeeApi } from '../services/api';
 import {
   CalendarDays,
   CheckCircle2,
@@ -14,6 +14,10 @@ import {
   X,
   Building,
   User,
+  Award,
+  ShieldCheck,
+  Edit2,
+  RefreshCw,
 } from 'lucide-react';
 
 const LEAVE_TYPES = ['CASUAL', 'SICK', 'ANNUAL', 'MATERNITY', 'PATERNITY', 'UNPAID'];
@@ -22,11 +26,23 @@ export default function LeaveManagement() {
   const { role, user } = useAuth();
   const isHrOrAdmin = role === 'HR' || role === 'ADMIN';
 
-  const [activeSubTab, setActiveSubTab] = useState('my_leaves'); // 'my_leaves' | 'org_approvals'
+  // Sub-tabs: 'my_balances' | 'my_leaves' | 'leave_policies' | 'org_approvals'
+  const [activeSubTab, setActiveSubTab] = useState('my_balances');
   const [summary, setSummary] = useState(null);
   const [myLeaves, setMyLeaves] = useState([]);
   const [orgLeaves, setOrgLeaves] = useState([]);
+  const [myBalances, setMyBalances] = useState([]);
+  const [policies, setPolicies] = useState([]);
+  const [orgBalances, setOrgBalances] = useState([]);
+  const [employeesList, setEmployeesList] = useState([]);
+  const [filterBalanceEmp, setFilterBalanceEmp] = useState('');
+
   const [loading, setLoading] = useState(true);
+  const [balancesLoading, setBalancesLoading] = useState(false);
+  const [policiesLoading, setPoliciesLoading] = useState(false);
+  const [orgBalancesLoading, setOrgBalancesLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
+
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -42,26 +58,62 @@ export default function LeaveManagement() {
   // Review Modal state (HR/Admin)
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState(null);
+  const [selectedLeaveBalance, setSelectedLeaveBalance] = useState(null);
   const [adminRemarks, setAdminRemarks] = useState('');
+
+  // Edit Policy Modal (HR/Admin)
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
+  const [editingPolicy, setEditingPolicy] = useState(null);
+  const [policyDaysInput, setPolicyDaysInput] = useState('');
+  const [policySaving, setPolicySaving] = useState(false);
 
   // Filters for organization leaves
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterType, setFilterType] = useState('ALL');
 
-  const fetchMyLeavesAndSummary = async () => {
+  // Fetch employee leaves, summary, and balances
+  const fetchMyData = async () => {
     setLoading(true);
     setError('');
     try {
-      const [sum, leaves] = await Promise.all([
-        leaveApi.getSummary(),
-        leaveApi.getMyHistory(),
+      const [sum, leaves, balances, policyList] = await Promise.all([
+        leaveApi.getSummary().catch(() => null),
+        leaveApi.getMyHistory().catch(() => []),
+        leaveApi.getMyBalances().catch(() => []),
+        leaveApi.getPolicies().catch(() => []),
       ]);
       setSummary(sum);
-      setMyLeaves(leaves);
+      setMyLeaves(leaves || []);
+      setMyBalances(balances || []);
+      setPolicies(policyList || []);
     } catch (err) {
-      console.warn('Could not fetch employee leave history:', err.message);
+      console.warn('Could not fetch employee leave data:', err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBalancesOnly = async () => {
+    setBalancesLoading(true);
+    try {
+      const balances = await leaveApi.getMyBalances();
+      setMyBalances(balances || []);
+    } catch (err) {
+      console.warn('Failed to load balances:', err.message);
+    } finally {
+      setBalancesLoading(false);
+    }
+  };
+
+  const fetchPoliciesOnly = async () => {
+    setPoliciesLoading(true);
+    try {
+      const policyList = await leaveApi.getPolicies();
+      setPolicies(policyList || []);
+    } catch (err) {
+      console.warn('Failed to load policies:', err.message);
+    } finally {
+      setPoliciesLoading(false);
     }
   };
 
@@ -73,7 +125,7 @@ export default function LeaveManagement() {
       if (filterStatus !== 'ALL') params.status = filterStatus;
       if (filterType !== 'ALL') params.leave_type = filterType;
       const data = await leaveApi.listAll(params);
-      setOrgLeaves(data);
+      setOrgLeaves(data || []);
     } catch (err) {
       setError(err.message || 'Failed to fetch organization leaves');
     } finally {
@@ -81,15 +133,39 @@ export default function LeaveManagement() {
     }
   };
 
+  const fetchOrgBalances = async () => {
+    if (!isHrOrAdmin) return;
+    setOrgBalancesLoading(true);
+    try {
+      const params = {};
+      if (filterBalanceEmp) params.employee_id = filterBalanceEmp;
+      const [bals, emps] = await Promise.all([
+        leaveApi.getBalances(params),
+        employeesList.length === 0 ? employeeApi.list().catch(() => []) : Promise.resolve(employeesList),
+      ]);
+      setOrgBalances(bals || []);
+      if (employeesList.length === 0) setEmployeesList(emps || []);
+    } catch (err) {
+      console.warn('Failed to fetch org balances:', err.message);
+    } finally {
+      setOrgBalancesLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchMyLeavesAndSummary();
+    fetchMyData();
   }, []);
 
   useEffect(() => {
     if (activeSubTab === 'org_approvals' && isHrOrAdmin) {
       fetchOrgLeaves();
+    } else if (activeSubTab === 'leave_policies') {
+      fetchPoliciesOnly();
+      if (isHrOrAdmin) fetchOrgBalances();
+    } else if (activeSubTab === 'my_balances') {
+      fetchBalancesOnly();
     }
-  }, [activeSubTab, filterStatus, filterType]);
+  }, [activeSubTab, filterStatus, filterType, filterBalanceEmp]);
 
   // Calculate duration in days
   const calculateDays = (start, end) => {
@@ -99,6 +175,11 @@ export default function LeaveManagement() {
     const diff = (d2 - d1) / (1000 * 60 * 60 * 24) + 1;
     return diff > 0 ? diff : 0;
   };
+
+  // Selected balance in apply modal
+  const selectedTypeBalance = myBalances.find((b) => b.leave_type === applyForm.leave_type);
+  const requestedDays = calculateDays(applyForm.start_date, applyForm.end_date);
+  const isInsufficient = selectedTypeBalance && Number(selectedTypeBalance.remaining_days) < requestedDays;
 
   const handleApplySubmit = async (e) => {
     e.preventDefault();
@@ -119,7 +200,7 @@ export default function LeaveManagement() {
       });
       setSuccessMsg('Leave application submitted successfully!');
       setTimeout(() => setSuccessMsg(''), 4000);
-      fetchMyLeavesAndSummary();
+      fetchMyData();
       if (isHrOrAdmin) fetchOrgLeaves();
     } catch (err) {
       setError(err.message || 'Failed to submit leave application');
@@ -127,22 +208,32 @@ export default function LeaveManagement() {
   };
 
   const handleCancelLeave = async (id) => {
-    if (!window.confirm('Are you sure you want to cancel this pending leave request?')) return;
+    if (!window.confirm('Are you sure you want to cancel this leave request?')) return;
     try {
       await leaveApi.cancel(id);
       setSuccessMsg('Leave application cancelled.');
       setTimeout(() => setSuccessMsg(''), 4000);
-      fetchMyLeavesAndSummary();
+      fetchMyData();
       if (isHrOrAdmin) fetchOrgLeaves();
     } catch (err) {
       setError(err.message || 'Failed to cancel leave');
     }
   };
 
-  const handleOpenReview = (leave) => {
+  const handleOpenReview = async (leave) => {
     setSelectedLeave(leave);
     setAdminRemarks(leave.admin_remarks || '');
+    setSelectedLeaveBalance(null);
     setShowReviewModal(true);
+
+    // Fetch applicant's balance for this leave type
+    try {
+      const applicantBals = await leaveApi.getBalances({ employee_id: leave.employee_id });
+      const match = applicantBals.find((b) => b.leave_type === leave.leave_type);
+      if (match) setSelectedLeaveBalance(match);
+    } catch (err) {
+      console.warn('Could not fetch applicant balance:', err);
+    }
   };
 
   const handleReviewSubmit = async (status) => {
@@ -154,12 +245,58 @@ export default function LeaveManagement() {
       });
       setShowReviewModal(false);
       setSelectedLeave(null);
-      setSuccessMsg(`Leave request has been marked as ${status}!`);
+      setSuccessMsg(`Leave request #${selectedLeave.id} marked as ${status}!`);
       setTimeout(() => setSuccessMsg(''), 4000);
       fetchOrgLeaves();
-      fetchMyLeavesAndSummary();
+      fetchMyData();
     } catch (err) {
       setError(err.message || 'Failed to review leave request');
+    }
+  };
+
+  // Sync / initialize all balances (HR/Admin)
+  const handleSyncBalances = async () => {
+    setSyncLoading(true);
+    try {
+      const res = await leaveApi.initializeBalances({});
+      setSuccessMsg(res.message || 'Leave balances synced successfully!');
+      setTimeout(() => setSuccessMsg(''), 4000);
+      fetchPoliciesOnly();
+      fetchOrgBalances();
+      fetchBalancesOnly();
+    } catch (err) {
+      setError(err.message || 'Failed to initialize balances');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  // Edit policy total days
+  const handleOpenEditPolicy = (policy) => {
+    setEditingPolicy(policy);
+    setPolicyDaysInput(policy.total_days_allowed);
+    setShowPolicyModal(true);
+  };
+
+  const handleSavePolicy = async (e) => {
+    e.preventDefault();
+    if (!editingPolicy) return;
+    setPolicySaving(true);
+    try {
+      await leaveApi.updatePolicy(editingPolicy.id, {
+        total_days_allowed: parseFloat(policyDaysInput),
+      });
+      setShowPolicyModal(false);
+      setEditingPolicy(null);
+      setSuccessMsg(`Updated ${editingPolicy.leave_type} allowance to ${policyDaysInput} days!`);
+      setTimeout(() => setSuccessMsg(''), 4000);
+      fetchPoliciesOnly();
+      fetchBalancesOnly();
+      if (isHrOrAdmin) fetchOrgBalances();
+    } catch (err) {
+      setError(err.message || 'Failed to update leave policy');
+    } finally {
+      setPolicySaving(false);
     }
   };
 
@@ -183,20 +320,22 @@ export default function LeaveManagement() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">Leave Management</h1>
+          <h1 className="page-title">Leave Management & Balances</h1>
           <p className="page-subtitle">
-            Apply for leave, track request history, and manage manager approvals
+            Track leave balances, inspect organizational policies, and manage requests
           </p>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setError('');
-            setShowApplyModal(true);
-          }}
-        >
-          <PlusCircle size={18} /> Apply for Leave
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setError('');
+              setShowApplyModal(true);
+            }}
+          >
+            <PlusCircle size={18} /> Apply for Leave
+          </button>
+        </div>
       </div>
 
       {successMsg && (
@@ -258,23 +397,184 @@ export default function LeaveManagement() {
         <div className="attendance-sub-tabs">
           <button
             type="button"
+            className={`sub-tab ${activeSubTab === 'my_balances' ? 'active' : ''}`}
+            onClick={() => setActiveSubTab('my_balances')}
+          >
+            <Award size={16} /> My Leave Balances
+          </button>
+          <button
+            type="button"
             className={`sub-tab ${activeSubTab === 'my_leaves' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('my_leaves')}
           >
             <CalendarDays size={16} /> My Leave History
           </button>
+          <button
+            type="button"
+            className={`sub-tab ${activeSubTab === 'leave_policies' ? 'active' : ''}`}
+            onClick={() => setActiveSubTab('leave_policies')}
+          >
+            <ShieldCheck size={16} /> Leave Policies
+          </button>
           {isHrOrAdmin && (
             <button
-              type="button"
-              className={`sub-tab ${activeSubTab === 'org_approvals' ? 'active' : ''}`}
-              onClick={() => setActiveSubTab('org_approvals')}
-            >
-              <Building size={16} /> Team Leave Approvals (HR/Admin)
-            </button>
+            type="button"
+            className={`sub-tab ${activeSubTab === 'org_approvals' ? 'active' : ''}`}
+            onClick={() => setActiveSubTab('org_approvals')}
+          >
+            <Building size={16} /> Team Leave Approvals (HR/Admin)
+          </button>
           )}
         </div>
 
-        {/* --- Subtab 1: My Leave History --- */}
+        {/* --- Subtab 1: My Leave Balances (Module 11) --- */}
+        {activeSubTab === 'my_balances' && (
+          <div>
+            {balancesLoading ? (
+              <div className="loading-state">
+                <span className="spinner"></span> Loading leave balances...
+              </div>
+            ) : myBalances.length === 0 ? (
+              <div className="empty-state">
+                <Award size={40} className="empty-icon" />
+                <h3>No Leave Balances Initialized</h3>
+                <p>Your leave balances will appear here once allocated by HR.</p>
+              </div>
+            ) : (
+              <div>
+                {/* Balance Cards Grid */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                    gap: '16px',
+                    marginBottom: '24px',
+                  }}
+                >
+                  {myBalances.map((bal) => {
+                    const total = Number(bal.total_allowed) || 0;
+                    const rem = Number(bal.remaining_days) || 0;
+                    const used = Number(bal.used_days) || 0;
+                    const pct = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+                    const isLow = rem <= 2 && total > 0;
+
+                    return (
+                      <div
+                        key={bal.id}
+                        className="stat-card"
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          padding: '18px',
+                          border: isLow ? '1px solid #fecaca' : '1px solid var(--border-color)',
+                          background: isLow ? '#fffbfb' : 'var(--bg-surface)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span
+                            className="status-badge"
+                            style={{
+                              background: '#eff6ff',
+                              color: '#1d4ed8',
+                              fontWeight: 600,
+                              fontSize: '0.8rem',
+                            }}
+                          >
+                            {bal.leave_type} LEAVE
+                          </span>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            Used: <strong>{bal.used_days}d</strong>
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '8px 0' }}>
+                          <span style={{ fontSize: '1.8rem', fontWeight: 700, color: isLow ? '#dc2626' : 'var(--primary)' }}>
+                            {bal.remaining_days}
+                          </span>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                            / {bal.total_allowed} days remaining
+                          </span>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div
+                          style={{
+                            width: '100%',
+                            height: '6px',
+                            background: '#e2e8f0',
+                            borderRadius: '4px',
+                            overflow: 'hidden',
+                            marginTop: '4px',
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${pct}%`,
+                              height: '100%',
+                              background: pct > 80 ? '#ef4444' : pct > 50 ? '#f59e0b' : 'var(--primary)',
+                              transition: 'width 0.3s ease',
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Balances Detail Table */}
+                <div className="table-card">
+                  <div className="table-card-header">
+                    <div>
+                      <h3>Detailed Leave Allowance Ledger</h3>
+                      <p className="table-subtitle">Summary of allotted, consumed, and currently available days</p>
+                    </div>
+                  </div>
+                  <div className="table-responsive">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Leave Type</th>
+                          <th>Total Allowed</th>
+                          <th>Days Used</th>
+                          <th>Days Remaining</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {myBalances.map((b) => {
+                          const rem = Number(b.remaining_days);
+                          return (
+                            <tr key={b.id}>
+                              <td>
+                                <strong>{b.leave_type}</strong>
+                              </td>
+                              <td>{b.total_allowed} days</td>
+                              <td>{b.used_days} days</td>
+                              <td>
+                                <strong style={{ color: rem > 0 ? '#10b981' : '#ef4444' }}>
+                                  {b.remaining_days} days
+                                </strong>
+                              </td>
+                              <td>
+                                {rem > 0 ? (
+                                  <span className="status-badge badge-active">Available</span>
+                                ) : (
+                                  <span className="status-badge badge-terminated">Exhausted</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- Subtab 2: My Leave History --- */}
         {activeSubTab === 'my_leaves' && (
           <div className="table-card">
             <div className="table-card-header">
@@ -346,17 +646,166 @@ export default function LeaveManagement() {
           </div>
         )}
 
-        {/* --- Subtab 2: Organization Leave Approvals (HR / Admin) --- */}
+        {/* --- Subtab 3: Leave Policies & Employee Balances Overview (Module 11) --- */}
+        {activeSubTab === 'leave_policies' && (
+          <div>
+            {/* Policy Overview Table */}
+            <div className="table-card" style={{ marginBottom: '24px' }}>
+              <div className="table-card-header">
+                <div>
+                  <h3>Organizational Leave Policies</h3>
+                  <p className="table-subtitle">Standard annual leave allowances configured for team members</p>
+                </div>
+                {isHrOrAdmin && (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    disabled={syncLoading}
+                    onClick={handleSyncBalances}
+                  >
+                    <RefreshCw size={14} className={syncLoading ? 'spinner' : ''} />
+                    {syncLoading ? 'Syncing...' : 'Sync All Balances'}
+                  </button>
+                )}
+              </div>
+
+              {policiesLoading ? (
+                <div className="loading-state">
+                  <span className="spinner"></span> Loading policies...
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Leave Type</th>
+                        <th>Standard Allowance</th>
+                        <th>Category Description</th>
+                        {isHrOrAdmin && <th className="text-right">Action</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {policies.map((pol) => (
+                        <tr key={pol.id}>
+                          <td>
+                            <strong>{pol.leave_type}</strong>
+                          </td>
+                          <td>
+                            <span className="dept-tag">{pol.total_days_allowed} days / year</span>
+                          </td>
+                          <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            {pol.leave_type === 'CASUAL' && 'Short-term personal, emergency, or ad-hoc time off'}
+                            {pol.leave_type === 'SICK' && 'Medical recuperation and doctor-certified health leaves'}
+                            {pol.leave_type === 'ANNUAL' && 'Planned annual vacation and rejuvenation time'}
+                            {pol.leave_type === 'MATERNITY' && 'Statutory parental maternity leave benefit'}
+                            {pol.leave_type === 'PATERNITY' && 'Parental paternity leave benefit'}
+                            {pol.leave_type === 'UNPAID' && 'Extended leave without pay / sabbatical'}
+                          </td>
+                          {isHrOrAdmin && (
+                            <td className="text-right">
+                              <button
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '4px 10px', fontSize: '0.8rem' }}
+                                onClick={() => handleOpenEditPolicy(pol)}
+                              >
+                                <Edit2 size={13} /> Edit
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* HR/Admin Employee Balances Roster */}
+            {isHrOrAdmin && (
+              <div className="table-card">
+                <div className="table-card-header">
+                  <div>
+                    <h3>Staff Leave Balances Roster</h3>
+                    <p className="table-subtitle">Inspect leave allowances and remaining balances across employees</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <select
+                      value={filterBalanceEmp}
+                      onChange={(e) => setFilterBalanceEmp(e.target.value)}
+                      className="filter-select"
+                      style={{ minWidth: '180px' }}
+                    >
+                      <option value="">All Employees</option>
+                      {employeesList.map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.full_name} ({emp.department})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {orgBalancesLoading ? (
+                  <div className="loading-state">
+                    <span className="spinner"></span> Loading staff balances...
+                  </div>
+                ) : orgBalances.length === 0 ? (
+                  <div className="empty-state">
+                    <Award size={40} className="empty-icon" />
+                    <h3>No balance records found</h3>
+                    <p>Click "Sync All Balances" above to initialize balances for all active staff.</p>
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Employee</th>
+                          <th>Department</th>
+                          <th>Leave Type</th>
+                          <th>Allotted</th>
+                          <th>Used</th>
+                          <th>Remaining</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orgBalances.map((b) => (
+                          <tr key={b.id}>
+                            <td>
+                              <strong>{b.employee_name || `Emp #${b.employee_id}`}</strong>
+                            </td>
+                            <td>{b.department || '-'}</td>
+                            <td>
+                              <span className="dept-tag">{b.leave_type}</span>
+                            </td>
+                            <td>{b.total_allowed} days</td>
+                            <td>{b.used_days} days</td>
+                            <td>
+                              <strong style={{ color: Number(b.remaining_days) > 0 ? '#10b981' : '#ef4444' }}>
+                                {b.remaining_days} days
+                              </strong>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- Subtab 4: Organization Leave Approvals (HR / Admin) --- */}
         {activeSubTab === 'org_approvals' && isHrOrAdmin && (
           <div className="table-card">
             <div className="table-card-header">
               <div>
-                <h3>Organization Leave Roster & Approvals</h3>
-                <p className="table-subtitle">Review, approve, or reject employee leave requests</p>
+                <h3>Team Leave Approvals</h3>
+                <p className="table-subtitle">Review, approve, or reject employee leave applications</p>
               </div>
             </div>
 
-            {/* Filters Bar */}
+            {/* Filters */}
             <div className="filters-card no-margin">
               <div className="filter-group">
                 <div className="select-with-icon">
@@ -368,9 +817,9 @@ export default function LeaveManagement() {
                   >
                     <option value="ALL">All Statuses</option>
                     <option value="PENDING">PENDING Only</option>
-                    <option value="APPROVED">APPROVED Only</option>
-                    <option value="REJECTED">REJECTED Only</option>
-                    <option value="CANCELLED">CANCELLED Only</option>
+                    <option value="APPROVED">APPROVED</option>
+                    <option value="REJECTED">REJECTED</option>
+                    <option value="CANCELLED">CANCELLED</option>
                   </select>
                 </div>
 
@@ -394,12 +843,13 @@ export default function LeaveManagement() {
 
             {loading ? (
               <div className="loading-state">
-                <span className="spinner"></span> Loading leave requests...
+                <span className="spinner"></span> Loading team requests...
               </div>
             ) : orgLeaves.length === 0 ? (
               <div className="empty-state">
                 <Building size={40} className="empty-icon" />
-                <h3>No leave requests found matching filters</h3>
+                <h3>No leave requests found</h3>
+                <p>There are no leave requests matching the selected filters.</p>
               </div>
             ) : (
               <div className="table-responsive">
@@ -407,13 +857,12 @@ export default function LeaveManagement() {
                   <thead>
                     <tr>
                       <th>Employee</th>
-                      <th>Department</th>
-                      <th>Type</th>
+                      <th>Leave Type</th>
                       <th>Dates</th>
-                      <th>Duration</th>
+                      <th>Days</th>
                       <th>Reason</th>
                       <th>Status</th>
-                      <th className="text-right">Actions</th>
+                      <th className="text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -421,15 +870,19 @@ export default function LeaveManagement() {
                       <tr key={l.id}>
                         <td>
                           <strong>{l.employee_name || `Emp #${l.employee_id}`}</strong>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {l.department}
+                          </div>
                         </td>
                         <td>
-                          <span className="dept-tag">{l.department || '-'}</span>
+                          <strong>{l.leave_type}</strong>
                         </td>
-                        <td>{l.leave_type}</td>
                         <td>
                           {l.start_date} to {l.end_date}
                         </td>
-                        <td>{l.total_days} days</td>
+                        <td>
+                          <span className="dept-tag">{l.total_days} days</span>
+                        </td>
                         <td>
                           <span className="notes-text">{l.reason}</span>
                         </td>
@@ -438,7 +891,7 @@ export default function LeaveManagement() {
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
-                            style={{ padding: '4px 12px', fontSize: '0.8rem' }}
+                            style={{ padding: '4px 10px', fontSize: '0.8rem' }}
                             onClick={() => handleOpenReview(l)}
                           >
                             Review
@@ -454,12 +907,12 @@ export default function LeaveManagement() {
         )}
       </div>
 
-      {/* --- APPLY FOR LEAVE MODAL --- */}
+      {/* --- APPLY LEAVE MODAL --- */}
       {showApplyModal && (
         <div className="modal-backdrop">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>Apply for Time Off</h3>
+              <h3>Submit Leave Request</h3>
               <button
                 className="modal-close-btn"
                 onClick={() => setShowApplyModal(false)}
@@ -483,6 +936,24 @@ export default function LeaveManagement() {
                     </option>
                   ))}
                 </select>
+
+                {/* Balance display for selected type */}
+                {selectedTypeBalance && (
+                  <div
+                    style={{
+                      marginTop: '6px',
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: Number(selectedTypeBalance.remaining_days) > 0 ? '#166534' : '#991b1b',
+                    }}
+                  >
+                    <span>
+                      Available Balance: <strong>{selectedTypeBalance.remaining_days} days</strong> (Total Allowed: {selectedTypeBalance.total_allowed} days)
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="form-row">
@@ -510,15 +981,21 @@ export default function LeaveManagement() {
                 </div>
               </div>
 
-              <div className="alert alert-info">
+              <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CalendarDays size={18} />
                 <span>
-                  Total requested duration:{' '}
-                  <strong>
-                    {calculateDays(applyForm.start_date, applyForm.end_date)} day(s)
-                  </strong>
+                  Total requested duration: <strong>{requestedDays} day(s)</strong>
                 </span>
               </div>
+
+              {isInsufficient && (
+                <div className="alert alert-error" style={{ fontSize: '0.85rem', padding: '8px 12px' }}>
+                  <AlertCircle size={16} />
+                  <span>
+                    Warning: Requested duration ({requestedDays} days) exceeds your available {applyForm.leave_type} balance ({selectedTypeBalance?.remaining_days} days).
+                  </span>
+                </div>
+              )}
 
               <div className="form-group">
                 <label>Reason / Justification *</label>
@@ -543,7 +1020,7 @@ export default function LeaveManagement() {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-primary" disabled={isInsufficient}>
                   Submit Application
                 </button>
               </div>
@@ -588,6 +1065,27 @@ export default function LeaveManagement() {
                     {selectedLeave.start_date} to {selectedLeave.end_date}
                   </span>
                 </div>
+                {selectedLeaveBalance && (
+                  <div
+                    className="profile-detail-item"
+                    style={{
+                      gridColumn: '1 / -1',
+                      background: Number(selectedLeaveBalance.remaining_days) >= selectedLeave.total_days ? '#f0fdf4' : '#fef2f2',
+                      padding: '10px 14px',
+                      borderRadius: '6px',
+                    }}
+                  >
+                    <span className="detail-label" style={{ color: '#0f172a' }}>Applicant's Leave Balance</span>
+                    <span className="detail-value">
+                      Remaining: <strong>{selectedLeaveBalance.remaining_days} days</strong> | Allotted: {selectedLeaveBalance.total_allowed} days
+                      {Number(selectedLeaveBalance.remaining_days) < selectedLeave.total_days && (
+                        <span style={{ color: '#ef4444', marginLeft: '8px', fontWeight: 600 }}>
+                          (Insufficient for {selectedLeave.total_days} days approval)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
                 <div className="profile-detail-item" style={{ gridColumn: '1 / -1' }}>
                   <span className="detail-label">Reason</span>
                   <span className="detail-value">{selectedLeave.reason}</span>
@@ -626,9 +1124,10 @@ export default function LeaveManagement() {
                     type="button"
                     className="btn"
                     style={{ background: '#10b981', color: '#fff' }}
+                    disabled={selectedLeaveBalance && Number(selectedLeaveBalance.remaining_days) < selectedLeave.total_days}
                     onClick={() => handleReviewSubmit('APPROVED')}
                   >
-                    <Check size={16} /> Approve Leave
+                    <Check size={16} /> Approve & Deduct
                   </button>
                 </div>
               </div>
@@ -636,7 +1135,61 @@ export default function LeaveManagement() {
           </div>
         </div>
       )}
+
+      {/* --- EDIT POLICY MODAL (HR/ADMIN - MODULE 11) --- */}
+      {showPolicyModal && editingPolicy && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3>Edit {editingPolicy.leave_type} Leave Policy</h3>
+              <button
+                className="modal-close-btn"
+                onClick={() => setShowPolicyModal(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePolicy} className="modal-body">
+              <div className="form-group">
+                <label>Leave Category</label>
+                <input
+                  type="text"
+                  disabled
+                  value={`${editingPolicy.leave_type} LEAVE`}
+                  style={{ background: '#f1f5f9', cursor: 'not-allowed' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Total Days Allowed (Annual Allowance) *</label>
+                <input
+                  type="number"
+                  required
+                  step="0.5"
+                  min="0"
+                  max="365"
+                  value={policyDaysInput}
+                  onChange={(e) => setPolicyDaysInput(e.target.value)}
+                />
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowPolicyModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={policySaving}>
+                  {policySaving ? 'Saving...' : 'Update Policy'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

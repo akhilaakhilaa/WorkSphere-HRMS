@@ -13,6 +13,7 @@ import {
   Bell,
   CheckCheck,
   ExternalLink,
+  ShieldCheck,
 } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab }) {
@@ -144,14 +145,27 @@ export default function Navbar({ activeTab, setActiveTab }) {
             <span>Attendance</span>
           </button>
 
-          <button
-            type="button"
-            className={`nav-link ${activeTab === 'employees' ? 'active' : ''}`}
-            onClick={() => setActiveTab('employees')}
-          >
-            <Users size={18} />
-            <span>Employees</span>
-          </button>
+          {(role === 'HR' || role === 'ADMIN') && (
+            <button
+              type="button"
+              className={`nav-link ${activeTab === 'employees' ? 'active' : ''}`}
+              onClick={() => setActiveTab('employees')}
+            >
+              <Users size={18} />
+              <span>Employees</span>
+            </button>
+          )}
+
+          {role === 'ADMIN' && (
+            <button
+              type="button"
+              className={`nav-link ${activeTab === 'users' ? 'active' : ''}`}
+              onClick={() => setActiveTab('users')}
+            >
+              <ShieldCheck size={18} />
+              <span>Users</span>
+            </button>
+          )}
 
           <button
             type="button"

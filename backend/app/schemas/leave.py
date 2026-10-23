@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -54,4 +55,52 @@ class LeaveSummary(BaseModel):
     approved: int
     rejected: int
     cancelled: int
+
+
+class LeavePolicyBase(BaseModel):
+    leave_type: LeaveType
+    total_days_allowed: Decimal = Field(..., ge=0)
+
+
+class LeavePolicyCreate(LeavePolicyBase):
+    pass
+
+
+class LeavePolicyUpdate(BaseModel):
+    total_days_allowed: Decimal = Field(..., ge=0)
+
+
+class LeavePolicyResponse(BaseModel):
+    id: int
+    leave_type: LeaveType
+    total_days_allowed: Decimal
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LeaveBalanceResponse(BaseModel):
+    id: int
+    employee_id: int
+    employee_name: Optional[str] = None
+    department: Optional[str] = None
+    leave_type: LeaveType
+    total_allowed: Decimal = Decimal("0.00")
+    used_days: Decimal = Decimal("0.00")
+    remaining_days: Decimal
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LeaveBalanceInitRequest(BaseModel):
+    employee_id: Optional[int] = None
+
+
+class LeaveBalanceInitResponse(BaseModel):
+    initialized_count: int
+    message: str
+
 
