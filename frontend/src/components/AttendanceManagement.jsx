@@ -369,6 +369,23 @@ export default function AttendanceManagement() {
                 {todayRecord ? getStatusBadge(todayRecord.status) : 'PENDING'}
               </span>
             </div>
+
+            <div className="time-tile">
+              <span className="time-tile-label">Assigned Shift</span>
+              <span className="time-tile-value" style={{ fontSize: '1rem', fontWeight: 600 }}>
+                {todayRecord?.shift_name || 'Standard 09:30 AM'}
+              </span>
+              {todayRecord?.is_late && (
+                <span style={{ fontSize: '0.72rem', color: '#dc2626', display: 'block', fontWeight: 600, marginTop: '2px' }}>
+                  Late ({todayRecord.late_minutes}m)
+                </span>
+              )}
+              {todayRecord?.is_early_departure && (
+                <span style={{ fontSize: '0.72rem', color: '#b45309', display: 'block', fontWeight: 600, marginTop: '2px' }}>
+                  Left Early ({todayRecord.early_departure_minutes}m)
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Action buttons and optional notes */}
@@ -538,6 +555,7 @@ export default function AttendanceManagement() {
                   <thead>
                     <tr>
                       <th>Date</th>
+                      <th>Shift</th>
                       <th>Check In</th>
                       <th>Check Out</th>
                       <th>Working Hours</th>
@@ -553,22 +571,76 @@ export default function AttendanceManagement() {
                           <strong>{rec.date}</strong>
                         </td>
                         <td>
-                          {rec.check_in
-                            ? new Date(rec.check_in).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                              })
-                            : '-'}
+                          {rec.shift_name ? (
+                            <div>
+                              <span style={{ fontWeight: 600 }}>{rec.shift_name}</span>
+                              {rec.scheduled_start && rec.scheduled_end && (
+                                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                  {rec.scheduled_start.substring(0, 5)} - {rec.scheduled_end.substring(0, 5)}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Standard</span>
+                          )}
                         </td>
                         <td>
-                          {rec.check_out
-                            ? new Date(rec.check_out).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                              })
-                            : '-'}
+                          {rec.check_in ? (
+                            <div>
+                              <div>
+                                {new Date(rec.check_in).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                })}
+                              </div>
+                              {rec.is_late && (
+                                <span
+                                  className="badge"
+                                  style={{
+                                    background: '#fef2f2',
+                                    color: '#dc2626',
+                                    fontSize: '0.72rem',
+                                    marginTop: '2px',
+                                    display: 'inline-block',
+                                  }}
+                                >
+                                  Late ({rec.late_minutes}m)
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                        <td>
+                          {rec.check_out ? (
+                            <div>
+                              <div>
+                                {new Date(rec.check_out).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                })}
+                              </div>
+                              {rec.is_early_departure && (
+                                <span
+                                  className="badge"
+                                  style={{
+                                    background: '#fffbeb',
+                                    color: '#b45309',
+                                    fontSize: '0.72rem',
+                                    marginTop: '2px',
+                                    display: 'inline-block',
+                                  }}
+                                >
+                                  Early ({rec.early_departure_minutes}m)
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            '-'
+                          )}
                         </td>
                         <td>
                           {rec.working_hours !== null && rec.working_hours !== undefined
@@ -704,6 +776,7 @@ export default function AttendanceManagement() {
                   <thead>
                     <tr>
                       <th>Employee</th>
+                      <th>Shift</th>
                       <th>Date</th>
                       <th>Check In</th>
                       <th>Check Out</th>
@@ -719,24 +792,71 @@ export default function AttendanceManagement() {
                         <td>
                           <strong>{rec.employee_name || `Emp #${rec.employee_id}`}</strong>
                         </td>
+                        <td>
+                          {rec.shift_name ? (
+                            <span style={{ fontWeight: 600 }}>{rec.shift_name}</span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Standard</span>
+                          )}
+                        </td>
                         <td>{rec.date}</td>
                         <td>
-                          {rec.check_in
-                            ? new Date(rec.check_in).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                              })
-                            : '-'}
+                          {rec.check_in ? (
+                            <div>
+                              <div>
+                                {new Date(rec.check_in).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                })}
+                              </div>
+                              {rec.is_late && (
+                                <span
+                                  className="badge"
+                                  style={{
+                                    background: '#fef2f2',
+                                    color: '#dc2626',
+                                    fontSize: '0.72rem',
+                                    marginTop: '2px',
+                                    display: 'inline-block',
+                                  }}
+                                >
+                                  Late ({rec.late_minutes}m)
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            '-'
+                          )}
                         </td>
                         <td>
-                          {rec.check_out
-                            ? new Date(rec.check_out).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                              })
-                            : '-'}
+                          {rec.check_out ? (
+                            <div>
+                              <div>
+                                {new Date(rec.check_out).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                })}
+                              </div>
+                              {rec.is_early_departure && (
+                                <span
+                                  className="badge"
+                                  style={{
+                                    background: '#fffbeb',
+                                    color: '#b45309',
+                                    fontSize: '0.72rem',
+                                    marginTop: '2px',
+                                    display: 'inline-block',
+                                  }}
+                                >
+                                  Early ({rec.early_departure_minutes}m)
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            '-'
+                          )}
                         </td>
                         <td>
                           {rec.working_hours !== null && rec.working_hours !== undefined

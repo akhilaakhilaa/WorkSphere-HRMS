@@ -33,3 +33,7 @@ Thumbs.db
 *.sqlite3
 *.db
 *.sql.bak
+
+# Private uploaded documents
+backend/uploads/
+uploads/

@@ -10,6 +10,12 @@ import PayrollManagement from './components/PayrollManagement';
 import NotificationCenter from './components/NotificationCenter';
 import MyProfile from './components/MyProfile';
 import UserManagement from './components/UserManagement';
+import ShiftManagement from './components/ShiftManagement';
+import LeaveCalendar from './components/LeaveCalendar';
+import DocumentManagement from './components/DocumentManagement';
+import PerformanceManagement from './components/PerformanceManagement';
+import AdvancedAnalytics from './components/AdvancedAnalytics';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function MainApp() {
   const { isAuthenticated, loading, role } = useAuth();
@@ -42,18 +48,25 @@ function MainApp() {
     <div className="app-root">
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
       <main className="main-content">
-        {activeTab === 'dashboard' && <DashboardAnalytics />}
-        {activeTab === 'attendance' && <AttendanceManagement />}
-        {activeTab === 'employees' && <EmployeeManagement />}
-        {activeTab === 'leaves' && <LeaveManagement />}
-        {activeTab === 'payroll' && <PayrollManagement />}
-        {activeTab === 'notifications' && <NotificationCenter setActiveTab={setActiveTab} />}
-        {activeTab === 'users' && role === 'ADMIN' && <UserManagement />}
-        {activeTab === 'profile' && <MyProfile />}
+        <ErrorBoundary key={activeTab}>
+          {activeTab === 'dashboard' && <DashboardAnalytics />}
+          {activeTab === 'attendance' && <AttendanceManagement />}
+          {activeTab === 'shifts' && <ShiftManagement />}
+          {activeTab === 'employees' && <EmployeeManagement />}
+          {activeTab === 'leaves' && <LeaveManagement />}
+          {activeTab === 'leave_calendar' && <LeaveCalendar />}
+          {activeTab === 'payroll' && <PayrollManagement />}
+          {activeTab === 'documents' && <DocumentManagement />}
+          {activeTab === 'performance' && <PerformanceManagement />}
+          {activeTab === 'analytics' && (role === 'ADMIN' || role === 'HR') && <AdvancedAnalytics />}
+          {activeTab === 'notifications' && <NotificationCenter setActiveTab={setActiveTab} />}
+          {activeTab === 'users' && role === 'ADMIN' && <UserManagement />}
+          {activeTab === 'profile' && <MyProfile />}
+        </ErrorBoundary>
       </main>
       <footer className="app-footer">
         <p>
-          WorkSphere HRMS &bull; Modules 1–7 Complete (Auth & Roles, Employees, Attendance, Leaves, Payroll, Dashboard & Analytics, Notifications)
+          WorkSphere HRMS &bull; Modules 1–19 (Auth & Roles, Employees, Attendance, Leaves, Policies, Leave Calendar, Payroll, Analytics, Notifications, Admin Controls, Shift Management, Document Management, Performance Management, Advanced Analytics, Smart Alerts)
         </p>
       </footer>
     </div>

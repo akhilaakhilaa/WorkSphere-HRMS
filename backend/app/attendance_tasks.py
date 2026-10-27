@@ -2,11 +2,14 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Iterable, Set
 
+from sqlalchemy import or_
+
 from app.config import PUBLIC_HOLIDAYS
 from app.database import SessionLocal
 from app.models.attendance import Attendance, AttendanceStatus
 from app.models.employee import Employee, EmployeeStatus
 from app.models.leave import Leave, LeaveStatus
+from app.models.shift import EmployeeShift
 
 
 def get_configured_holidays(
@@ -159,9 +162,28 @@ def mark_absent_employees(
             marked_count += 1
 
             if not dry_run:
+                # Query active shift for this employee on work_date
+                active_shift_id = None
+                active_emp_shift = (
+                    db.query(EmployeeShift)
+                    .filter(
+                        EmployeeShift.employee_id == employee.id,
+                        EmployeeShift.is_active.is_(True),
+                        EmployeeShift.start_date <= work_date,
+                        or_(
+                            EmployeeShift.end_date.is_(None),
+                            EmployeeShift.end_date >= work_date,
+                        ),
+                    )
+                    .first()
+                )
+                if active_emp_shift:
+                    active_shift_id = active_emp_shift.shift_id
+
                 db.add(
                     Attendance(
                         employee_id=employee.id,
+                        shift_id=active_shift_id,
                         date=work_date,
                         status=AttendanceStatus.ABSENT,
                         working_hours=Decimal("0.00"),

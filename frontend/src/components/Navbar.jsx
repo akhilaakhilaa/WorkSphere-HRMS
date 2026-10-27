@@ -14,6 +14,11 @@ import {
   CheckCheck,
   ExternalLink,
   ShieldCheck,
+  CalendarRange,
+  Calendar,
+  FolderArchive,
+  Award,
+  BarChart3,
 } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab }) {
@@ -82,6 +87,10 @@ export default function Navbar({ activeTab, setActiveTab }) {
       setActiveTab('leaves');
     } else if (notif.link === '/payroll' || notif.type === 'PAYROLL') {
       setActiveTab('payroll');
+    } else if (notif.link === '/documents' || notif.type === 'DOCUMENT') {
+      setActiveTab('documents');
+    } else if (notif.link === '/performance' || notif.type === 'PERFORMANCE') {
+      setActiveTab('performance');
     } else if (notif.link === '/attendance' || notif.type === 'ATTENDANCE') {
       setActiveTab('attendance');
     } else {
@@ -145,6 +154,15 @@ export default function Navbar({ activeTab, setActiveTab }) {
             <span>Attendance</span>
           </button>
 
+          <button
+            type="button"
+            className={`nav-link ${activeTab === 'shifts' ? 'active' : ''}`}
+            onClick={() => setActiveTab('shifts')}
+          >
+            <CalendarRange size={18} />
+            <span>Shifts</span>
+          </button>
+
           {(role === 'HR' || role === 'ADMIN') && (
             <button
               type="button"
@@ -178,12 +196,50 @@ export default function Navbar({ activeTab, setActiveTab }) {
 
           <button
             type="button"
+            className={`nav-link ${activeTab === 'leave_calendar' ? 'active' : ''}`}
+            onClick={() => setActiveTab('leave_calendar')}
+          >
+            <Calendar size={18} />
+            <span>Calendar</span>
+          </button>
+
+          <button
+            type="button"
             className={`nav-link ${activeTab === 'payroll' ? 'active' : ''}`}
             onClick={() => setActiveTab('payroll')}
           >
             <CreditCard size={18} />
             <span>Payroll</span>
           </button>
+
+          <button
+            type="button"
+            className={`nav-link ${activeTab === 'documents' ? 'active' : ''}`}
+            onClick={() => setActiveTab('documents')}
+          >
+            <FolderArchive size={18} />
+            <span>Documents</span>
+          </button>
+
+          <button
+            type="button"
+            className={`nav-link ${activeTab === 'performance' ? 'active' : ''}`}
+            onClick={() => setActiveTab('performance')}
+          >
+            <Award size={18} />
+            <span>Performance</span>
+          </button>
+
+          {(role === 'HR' || role === 'ADMIN') && (
+            <button
+              type="button"
+              className={`nav-link ${activeTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => setActiveTab('analytics')}
+            >
+              <BarChart3 size={18} />
+              <span>Analytics</span>
+            </button>
+          )}
 
           <button
             type="button"

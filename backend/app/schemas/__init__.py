@@ -39,6 +39,13 @@ from app.schemas.leave import (
     LeaveBalanceResponse,
     LeaveBalanceInitRequest,
     LeaveBalanceInitResponse,
+    LeaveCalendarItemResponse,
+    TeamAvailabilityEmployee,
+    DepartmentAvailabilitySummary,
+    TeamAvailabilityUpcoming,
+    TeamAvailabilityResponse,
+    ConflictEmployee,
+    LeaveConflictResponse,
 )
 from app.schemas.payroll import (
     PayrollBase,
@@ -64,6 +71,36 @@ from app.schemas.notification import (
     NotificationBroadcast,
     UnreadCountResponse,
     MarkAllReadResponse,
+    NotificationDeleteResponse,
+)
+from app.schemas.shift import (
+    ShiftBase,
+    ShiftCreate,
+    ShiftUpdate,
+    ShiftResponse,
+    EmployeeShiftAssignRequest,
+    EmployeeShiftUpdateRequest,
+    EmployeeShiftResponse,
+)
+from app.schemas.document import (
+    DocumentBase,
+    DocumentResponse,
+    DocumentSummary,
+)
+from app.schemas.performance import (
+    RATING_LABELS,
+    PerformanceReviewBase,
+    PerformanceReviewCreate,
+    PerformanceReviewUpdate,
+    PerformanceReviewResponse,
+    PerformanceSummary,
+)
+from app.schemas.advanced_analytics import (
+    AnalyticsSummaryResponse,
+    AttendanceTrendItem,
+    LeaveTrendItem,
+    PerformanceInsightsResponse,
+    DepartmentReportItem,
 )
 
 __all__ = [
@@ -120,4 +157,26 @@ __all__ = [
     "NotificationBroadcast",
     "UnreadCountResponse",
     "MarkAllReadResponse",
+    "NotificationDeleteResponse",
+    "ShiftBase",
+    "ShiftCreate",
+    "ShiftUpdate",
+    "ShiftResponse",
+    "EmployeeShiftAssignRequest",
+    "EmployeeShiftUpdateRequest",
+    "EmployeeShiftResponse",
+    "DocumentBase",
+    "DocumentResponse",
+    "DocumentSummary",
+    "RATING_LABELS",
+    "PerformanceReviewBase",
+    "PerformanceReviewCreate",
+    "PerformanceReviewUpdate",
+    "PerformanceReviewResponse",
+    "PerformanceSummary",
+    "AnalyticsSummaryResponse",
+    "AttendanceTrendItem",
+    "LeaveTrendItem",
+    "PerformanceInsightsResponse",
+    "DepartmentReportItem",
 ]

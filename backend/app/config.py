@@ -56,4 +56,19 @@ def parse_public_holidays(raw: str | None = None) -> set[date]:
 
 PUBLIC_HOLIDAYS = parse_public_holidays()
 
+# Module 16: Document Management Configuration
+DEFAULT_UPLOAD_DIR = str(Path(__file__).resolve().parent.parent / "uploads" / "documents")
+DOCUMENTS_UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", DEFAULT_UPLOAD_DIR)).resolve()
+MAX_DOCUMENT_FILE_SIZE = int(os.getenv("MAX_DOCUMENT_FILE_SIZE", 5 * 1024 * 1024))  # 5 MB
+
+ALLOWED_DOCUMENT_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}
+ALLOWED_DOCUMENT_MIME_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+}
+
+# Ensure upload directory exists
+DOCUMENTS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
 

@@ -1,5 +1,6 @@
 import enum
 from sqlalchemy import (
+    Boolean,
     Column,
     Date,
     DateTime,
@@ -33,6 +34,12 @@ class Attendance(Base):
         nullable=False,
         index=True,
     )
+    shift_id = Column(
+        Integer,
+        ForeignKey("shifts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     date = Column(Date, nullable=False, index=True)
     check_in = Column(DateTime, nullable=True)
     check_out = Column(DateTime, nullable=True)
@@ -43,6 +50,10 @@ class Attendance(Base):
         default=AttendanceStatus.PRESENT,
         nullable=False,
     )
+    is_late = Column(Boolean, default=False, nullable=False)
+    late_minutes = Column(Integer, default=0, nullable=False)
+    is_early_departure = Column(Boolean, default=False, nullable=False)
+    early_departure_minutes = Column(Integer, default=0, nullable=False)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(
@@ -53,9 +64,9 @@ class Attendance(Base):
         UniqueConstraint("employee_id", "date", name="uq_employee_attendance_date"),
     )
 
-    # Relationship
+    # Relationships
     employee = relationship("Employee", back_populates="attendances")
+    shift = relationship("Shift", back_populates="attendances")
 
     def __repr__(self):
-        return f"<Attendance id={self.id} employee_id={self.employee_id} date={self.date} status={self.status}>"
-
+        return f"<Attendance id={self.id} employee_id={self.employee_id} date={self.date} status={self.status} late={self.is_late}>"

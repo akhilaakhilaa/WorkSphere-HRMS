@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -6,14 +6,18 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_employee, get_current_user, require_roles
-from app.models.employee import Employee
+from app.models.employee import Employee, EmployeeStatus
 from app.models.leave import Leave, LeaveBalance, LeavePolicy, LeaveStatus, LeaveType
 from app.models.notification import NotificationType
 from app.models.user import User, UserRole
 from app.schemas.leave import (
+    ConflictEmployee,
+    DepartmentAvailabilitySummary,
     LeaveBalanceInitRequest,
     LeaveBalanceInitResponse,
     LeaveBalanceResponse,
+    LeaveCalendarItemResponse,
+    LeaveConflictResponse,
     LeaveCreate,
     LeavePolicyCreate,
     LeavePolicyResponse,
@@ -21,6 +25,9 @@ from app.schemas.leave import (
     LeaveResponse,
     LeaveReview,
     LeaveSummary,
+    TeamAvailabilityEmployee,
+    TeamAvailabilityResponse,
+    TeamAvailabilityUpcoming,
 )
 from app.leave_policy_service import (
     ensure_default_policies,
@@ -342,6 +349,410 @@ def initialize_leave_balances(
 
 
 # -------------------------------------------------------------
+# Module 15: Leave Calendar, Team Availability & Conflict Detection
+# (Placed before /{leave_id} to avoid path parameter route collision)
+# -------------------------------------------------------------
+
+
+@router.get("/calendar", response_model=List[LeaveCalendarItemResponse])
+def get_leave_calendar(
+    start_date: Optional[date] = Query(None, description="Start date of calendar window"),
+    end_date: Optional[date] = Query(None, description="End date of calendar window"),
+    department: Optional[str] = Query(None, description="Filter by department"),
+    employee_id: Optional[int] = Query(None, description="Filter by employee ID"),
+    include_pending: bool = Query(True, description="Include pending requests clearly labeled"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Retrieve leave records for team calendar visualization.
+    - Defaults to current calendar month if start/end dates omitted.
+    - Excludes REJECTED and CANCELLED leaves.
+    - Clearly flags confirmed (APPROVED) vs pending leaves.
+    - Masks private leave reasons for other employees when accessed by regular employees.
+    - Accessible to all authenticated users.
+    """
+    today = date.today()
+    if start_date is None:
+        start_date = today.replace(day=1)
+    if end_date is None:
+        if start_date.month == 12:
+            next_month = start_date.replace(year=start_date.year + 1, month=1, day=1)
+        else:
+            next_month = start_date.replace(month=start_date.month + 1, day=1)
+        end_date = next_month - timedelta(days=1)
+
+    if end_date < start_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="end_date cannot be earlier than start_date.",
+        )
+
+    # Base query joining Employee
+    query = (
+        db.query(Leave)
+        .join(Employee, Employee.id == Leave.employee_id)
+        .filter(
+            Leave.start_date <= end_date,
+            Leave.end_date >= start_date,
+        )
+    )
+
+    if include_pending:
+        query = query.filter(Leave.status.in_([LeaveStatus.APPROVED, LeaveStatus.PENDING]))
+    else:
+        query = query.filter(Leave.status == LeaveStatus.APPROVED)
+
+    if department and department.upper() != "ALL":
+        query = query.filter(Employee.department == department)
+
+    if employee_id:
+        query = query.filter(Leave.employee_id == employee_id)
+
+    leaves = query.order_by(Leave.start_date.asc(), Employee.full_name.asc()).all()
+
+    # Determine caller's employee profile for privacy protection
+    my_emp_id = None
+    if current_user.role == UserRole.EMPLOYEE:
+        emp = db.query(Employee).filter(Employee.user_id == current_user.id).first()
+        if emp:
+            my_emp_id = emp.id
+
+    calendar_items = []
+    for l in leaves:
+        # Mask reasons of other employees from regular staff
+        if current_user.role == UserRole.EMPLOYEE and l.employee_id != my_emp_id:
+            visible_reason = None
+        else:
+            visible_reason = l.reason
+
+        calendar_items.append(
+            LeaveCalendarItemResponse(
+                id=l.id,
+                employee_id=l.employee_id,
+                employee_name=l.employee.full_name if l.employee else f"Employee #{l.employee_id}",
+                department=l.employee.department if l.employee else "Unknown",
+                designation=l.employee.designation if l.employee else None,
+                leave_type=l.leave_type,
+                start_date=l.start_date,
+                end_date=l.end_date,
+                total_days=l.total_days,
+                status=l.status,
+                reason=visible_reason,
+                is_confirmed=(l.status == LeaveStatus.APPROVED),
+            )
+        )
+
+    return calendar_items
+
+
+@router.get("/team-availability", response_model=TeamAvailabilityResponse)
+def get_team_availability(
+    target_date: Optional[date] = Query(None, description="Date to evaluate availability (defaults to today)"),
+    department: Optional[str] = Query(None, description="Filter by department"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Retrieve team availability metrics, today's on-leave roster, and upcoming leaves.
+    - Accurately counts distinct employees to avoid double-counting.
+    - Excludes rejected and cancelled leaves from confirmed counts.
+    - Clearly distinguishes employees not recorded on leave from confirmed available.
+    - Accessible to all authenticated users.
+    """
+    eval_date = target_date or date.today()
+
+    # 1. Query active employees
+    emp_query = db.query(Employee).filter(Employee.status == EmployeeStatus.ACTIVE)
+    if department and department.upper() != "ALL":
+        emp_query = emp_query.filter(Employee.department == department)
+    active_employees = emp_query.all()
+    total_active = len(active_employees)
+    active_emp_ids = {e.id for e in active_employees}
+
+    # 2. Query approved leaves covering eval_date
+    leave_query = (
+        db.query(Leave)
+        .join(Employee, Employee.id == Leave.employee_id)
+        .filter(
+            Leave.status == LeaveStatus.APPROVED,
+            Leave.start_date <= eval_date,
+            Leave.end_date >= eval_date,
+        )
+    )
+    if department and department.upper() != "ALL":
+        leave_query = leave_query.filter(Employee.department == department)
+    approved_leaves_today = leave_query.all()
+
+    # 3. Deduplicate by employee_id to prevent double-counting
+    leave_by_emp_id = {}
+    for l in approved_leaves_today:
+        if l.employee_id in active_emp_ids and l.employee_id not in leave_by_emp_id:
+            leave_by_emp_id[l.employee_id] = l
+
+    unique_leave_emp_ids = set(leave_by_emp_id.keys())
+    employees_on_leave_today_count = len(unique_leave_emp_ids)
+    employees_not_on_leave_today_count = max(0, total_active - employees_on_leave_today_count)
+
+    on_leave_today_list = [
+        TeamAvailabilityEmployee(
+            employee_id=l.employee_id,
+            employee_name=l.employee.full_name if l.employee else f"Employee #{l.employee_id}",
+            department=l.employee.department if l.employee else "Unknown",
+            designation=l.employee.designation if l.employee else None,
+            leave_id=l.id,
+            leave_type=l.leave_type,
+            start_date=l.start_date,
+            end_date=l.end_date,
+            total_days=l.total_days,
+        )
+        for l in leave_by_emp_id.values()
+    ]
+
+    # 4. Department breakdown
+    dept_active = {}
+    for e in active_employees:
+        dept_active.setdefault(e.department, []).append(e)
+
+    dept_summaries = []
+    for dept_name, emps in sorted(dept_active.items()):
+        dept_total = len(emps)
+        dept_emp_ids = {e.id for e in emps}
+        dept_on_leave = len(unique_leave_emp_ids.intersection(dept_emp_ids))
+        dept_not_on_leave = max(0, dept_total - dept_on_leave)
+        coverage_rate = round((dept_not_on_leave / dept_total) * 100.0, 1) if dept_total > 0 else 100.0
+
+        dept_summaries.append(
+            DepartmentAvailabilitySummary(
+                department=dept_name,
+                total_active_employees=dept_total,
+                employees_on_leave_today=dept_on_leave,
+                employees_not_on_leave_today=dept_not_on_leave,
+                coverage_rate_percentage=coverage_rate,
+            )
+        )
+
+    # 5. Upcoming approved leaves within next 30 days
+    upcoming_end = eval_date + timedelta(days=30)
+    upcoming_query = (
+        db.query(Leave)
+        .join(Employee, Employee.id == Leave.employee_id)
+        .filter(
+            Leave.status == LeaveStatus.APPROVED,
+            Leave.start_date > eval_date,
+            Leave.start_date <= upcoming_end,
+        )
+    )
+    if department and department.upper() != "ALL":
+        upcoming_query = upcoming_query.filter(Employee.department == department)
+    upcoming_records = upcoming_query.order_by(Leave.start_date.asc(), Leave.id.asc()).limit(50).all()
+
+    upcoming_list = [
+        TeamAvailabilityUpcoming(
+            id=l.id,
+            employee_id=l.employee_id,
+            employee_name=l.employee.full_name if l.employee else f"Employee #{l.employee_id}",
+            department=l.employee.department if l.employee else "Unknown",
+            leave_type=l.leave_type,
+            start_date=l.start_date,
+            end_date=l.end_date,
+            total_days=l.total_days,
+        )
+        for l in upcoming_records
+    ]
+
+    return TeamAvailabilityResponse(
+        target_date=eval_date,
+        total_active_employees=total_active,
+        employees_on_leave_today_count=employees_on_leave_today_count,
+        employees_not_on_leave_today_count=employees_not_on_leave_today_count,
+        on_leave_today=on_leave_today_list,
+        upcoming_leaves=upcoming_list,
+        department_summaries=dept_summaries,
+    )
+
+
+@router.get("/conflicts", response_model=List[LeaveConflictResponse])
+def get_leave_conflicts(
+    department: Optional[str] = Query(None, description="Filter by department"),
+    start_date: Optional[date] = Query(None, description="Start date of evaluation window"),
+    end_date: Optional[date] = Query(None, description="End date of evaluation window"),
+    min_overlap: int = Query(2, ge=2, description="Minimum overlapping staff to flag coverage conflict"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.ADMIN, UserRole.HR])),
+):
+    """
+    Detect overlapping leave requests and team coverage bottlenecks.
+    - Evaluates department-wise concurrency across inclusive date intervals.
+    - Highlights pending requests that overlap existing approved leaves.
+    - Excludes rejected and cancelled leaves.
+    - Avoids treating multiple leaves for the same employee as multiple absent employees.
+    - Restricted to ADMIN and HR roles.
+    """
+    if start_date is None:
+        start_date = date.today()
+    if end_date is None:
+        end_date = start_date + timedelta(days=60)
+
+    if end_date < start_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="end_date cannot be earlier than start_date.",
+        )
+
+    # Query active employees by department to know team headcount
+    emp_query = db.query(Employee).filter(Employee.status == EmployeeStatus.ACTIVE)
+    if department and department.upper() != "ALL":
+        emp_query = emp_query.filter(Employee.department == department)
+    active_employees = emp_query.all()
+
+    dept_headcounts = {}
+    for emp in active_employees:
+        dept_headcounts[emp.department] = dept_headcounts.get(emp.department, 0) + 1
+
+    # Query all active/pending leaves overlapping the window
+    leaves_query = (
+        db.query(Leave)
+        .join(Employee, Employee.id == Leave.employee_id)
+        .filter(
+            Leave.status.in_([LeaveStatus.APPROVED, LeaveStatus.PENDING]),
+            Leave.start_date <= end_date,
+            Leave.end_date >= start_date,
+        )
+    )
+    if department and department.upper() != "ALL":
+        leaves_query = leaves_query.filter(Employee.department == department)
+
+    leaves = leaves_query.order_by(Leave.start_date.asc()).all()
+
+    # Group leaves by department
+    dept_leaves = {}
+    for l in leaves:
+        dept = l.employee.department if l.employee else "General"
+        dept_leaves.setdefault(dept, []).append(l)
+
+    conflicts = []
+
+    # For each department, find contiguous dates with concurrent leaves
+    for dept_name, d_leaves in dept_leaves.items():
+        dept_size = dept_headcounts.get(dept_name, len(set(l.employee_id for l in d_leaves)))
+
+        # Find all distinct dates where >= min_overlap distinct employees have leave
+        curr = start_date
+        conflict_dates = []
+
+        while curr <= end_date:
+            active_on_day = [
+                l for l in d_leaves
+                if l.start_date <= curr <= l.end_date
+            ]
+            distinct_emp_ids = set(l.employee_id for l in active_on_day)
+            if len(distinct_emp_ids) >= min_overlap:
+                conflict_dates.append(curr)
+            curr += timedelta(days=1)
+
+        if not conflict_dates:
+            continue
+
+        # Group consecutive conflict dates into contiguous segments
+        segments = []
+        seg_start = conflict_dates[0]
+        prev = conflict_dates[0]
+
+        for d in conflict_dates[1:]:
+            if d == prev + timedelta(days=1):
+                prev = d
+            else:
+                segments.append((seg_start, prev))
+                seg_start = d
+                prev = d
+        segments.append((seg_start, prev))
+
+        # Build conflict responses for each segment
+        for seg_s, seg_e in segments:
+            # Collect all leaves active across this segment
+            seg_leaves = [
+                l for l in d_leaves
+                if l.start_date <= seg_e and l.end_date >= seg_s
+            ]
+            # Deduplicate by employee
+            emp_dict = {}
+            for l in seg_leaves:
+                if l.employee_id not in emp_dict:
+                    emp_dict[l.employee_id] = l
+
+            conflict_employees = [
+                ConflictEmployee(
+                    leave_id=l.id,
+                    employee_id=l.employee_id,
+                    employee_name=l.employee.full_name if l.employee else f"Employee #{l.employee_id}",
+                    department=dept_name,
+                    leave_type=l.leave_type,
+                    status=l.status,
+                    start_date=l.start_date,
+                    end_date=l.end_date,
+                )
+                for l in emp_dict.values()
+            ]
+
+            emp_count = len(conflict_employees)
+            has_pending = any(e.status == LeaveStatus.PENDING for e in conflict_employees)
+            has_approved = any(e.status == LeaveStatus.APPROVED for e in conflict_employees)
+
+            if has_pending and has_approved:
+                conflict_type = "PENDING_OVERLAPPING_APPROVED"
+            elif has_pending:
+                conflict_type = "PENDING_CONCURRENT_LEAVE"
+            else:
+                conflict_type = "DEPARTMENT_CONCURRENT_LEAVE"
+
+            # Severity calculation
+            if emp_count >= 3 or (dept_size > 0 and (emp_count / dept_size) >= 0.5):
+                severity = "HIGH"
+            elif emp_count >= 2:
+                severity = "MEDIUM"
+            else:
+                severity = "LOW"
+
+            total_days_overlap = (seg_e - seg_s).days + 1
+            emp_names = [e.employee_name for e in conflict_employees]
+
+            msg = (
+                f"{emp_count} employees from {dept_name} ({', '.join(emp_names)}) have overlapping "
+                f"leave from {seg_s} to {seg_e} ({total_days_overlap} days)."
+            )
+
+            if has_pending:
+                recommendation = (
+                    f"Review team workload and staffing before approving pending requests for {dept_name}."
+                )
+            else:
+                recommendation = (
+                    f"Ensure handover and minimum operational coverage for {dept_name} during this concurrent leave window."
+                )
+
+            conf_id = f"conf-{dept_name.lower().replace(' ', '-')}-{seg_s}-{seg_e}"
+
+            conflicts.append(
+                LeaveConflictResponse(
+                    id=conf_id,
+                    department=dept_name,
+                    conflict_type=conflict_type,
+                    severity=severity,
+                    start_date=seg_s,
+                    end_date=seg_e,
+                    total_days_overlap=total_days_overlap,
+                    employee_count=emp_count,
+                    employees=conflict_employees,
+                    message=msg,
+                    recommendation=recommendation,
+                )
+            )
+
+    return conflicts
+
+
+# -------------------------------------------------------------
 # Individual Leave Request Endpoints
 # -------------------------------------------------------------
 
@@ -419,6 +830,8 @@ def review_leave(
         .first()
     )
 
+    prev_status = leave.status
+
     if review_in.status == LeaveStatus.APPROVED:
         # Prevent double-deduction on repeated approval
         if leave.status == LeaveStatus.APPROVED:
@@ -450,8 +863,8 @@ def review_leave(
     leave.reviewed_by = current_user.id
     leave.reviewed_at = datetime.now()
 
-    # Notifications-ready: Notify the employee of approval/rejection
-    if leave.employee and leave.employee.user_id:
+    # Smart Alerts: Notify employee only if status actually changed & prevent duplicates
+    if leave.employee and leave.employee.user_id and prev_status != review_in.status:
         status_label = "Approved" if review_in.status == LeaveStatus.APPROVED else "Rejected"
         notify_user(
             db,
@@ -461,6 +874,8 @@ def review_leave(
             + (f" Note: {review_in.admin_remarks}" if review_in.admin_remarks else ""),
             notif_type=NotificationType.LEAVE,
             link="/leaves",
+            related_entity_id=leave.id,
+            prevent_duplicate=True,
         )
 
     db.commit()

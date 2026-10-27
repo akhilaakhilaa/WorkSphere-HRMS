@@ -22,7 +22,11 @@ from app.routers import (
     leaves_router,
     notifications_router,
     payroll_router,
+    shifts_router,
     users_router,
+    documents_router,
+    performance_router,
+    advanced_analytics_router,
 )
 
 
@@ -123,6 +127,10 @@ app.include_router(payroll_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
+app.include_router(shifts_router, prefix="/api")
+app.include_router(documents_router, prefix="/api")
+app.include_router(performance_router, prefix="/api")
+app.include_router(advanced_analytics_router, prefix="/api")
 
 
 @app.get("/")

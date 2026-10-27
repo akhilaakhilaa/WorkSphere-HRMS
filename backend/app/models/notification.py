@@ -10,7 +10,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 
 from app.database import Base
 
@@ -20,6 +20,8 @@ class NotificationType(str, enum.Enum):
     PAYROLL = "PAYROLL"
     ATTENDANCE = "ATTENDANCE"
     SYSTEM = "SYSTEM"
+    DOCUMENT = "DOCUMENT"
+    PERFORMANCE = "PERFORMANCE"
 
 
 class Notification(Base):
@@ -36,13 +38,21 @@ class Notification(Base):
         default=NotificationType.SYSTEM,
         nullable=False,
     )
-    is_read = Column(Boolean, default=False, nullable=False)
+    is_read = Column(Boolean, default=False, nullable=False, index=True)
     link = Column(String(255), nullable=True)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    related_entity_id = Column(Integer, nullable=True, index=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False, index=True)
+    read_at = Column(DateTime, nullable=True)
+
+    # Synonyms / Aliases for clean multi-convention support
+    recipient_id = synonym("user_id")
+    notification_type = synonym("type")
 
     # Relationship
     user = relationship("User", back_populates="notifications")
 
     def __repr__(self):
-        return f"<Notification id={self.id} user_id={self.user_id} title={self.title} read={self.is_read}>"
-
+        return (
+            f"<Notification id={self.id} user_id={self.user_id} title={self.title} "
+            f"type={self.type} read={self.is_read} entity_id={self.related_entity_id}>"
+        )

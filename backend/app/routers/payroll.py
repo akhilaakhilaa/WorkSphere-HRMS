@@ -214,7 +214,7 @@ def generate_payroll(
         db.add(new_payroll)
         db.flush()
 
-        # Notifications-ready
+        # Smart Alerts: notify employee with deduplication
         if emp.user_id:
             notify_user(
                 db,
@@ -223,6 +223,8 @@ def generate_payroll(
                 message=f"Your payslip for {gen_req.month}/{gen_req.year} has been generated. Net Salary: ${net_salary:,.2f}",
                 notif_type=NotificationType.PAYROLL,
                 link="/payroll",
+                related_entity_id=new_payroll.id,
+                prevent_duplicate=True,
             )
 
         created_payrolls.append(new_payroll)
@@ -625,6 +627,8 @@ def mark_payroll_paid(
             message=f"Your salary of ${p.net_salary:,.2f} for {p.month}/{p.year} has been marked as PAID via {payment_method.value}.",
             notif_type=NotificationType.PAYROLL,
             link="/payroll",
+            related_entity_id=p.id,
+            prevent_duplicate=True,
         )
 
     db.commit()

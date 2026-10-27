@@ -36,8 +36,39 @@ class EmployeeResponse(EmployeeBase):
     id: int
     user_id: Optional[int] = None
     user_email: Optional[str] = None
+    role: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class EmployeeSearchItemResponse(BaseModel):
+    id: int
+    user_id: Optional[int] = None
+    user_email: Optional[str] = None
+    full_name: str
+    designation: str
+    department: str
+    role: Optional[str] = None
+    status: EmployeeStatus
+    joining_date: date
+    salary: Optional[Decimal] = None
+    attendance_status: Optional[str] = None
+    is_late: Optional[bool] = False
+    performance_rating: Optional[float] = None
+    performance_level: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EmployeeSearchPaginationResponse(BaseModel):
+    items: list[EmployeeSearchItemResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
 

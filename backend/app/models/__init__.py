@@ -5,6 +5,9 @@ from app.models.attendance import Attendance, AttendanceStatus
 from app.models.leave import Leave, LeaveType, LeaveStatus, LeavePolicy, LeaveBalance
 from app.models.payroll import Payroll, PaymentStatus, PaymentMethod
 from app.models.notification import Notification, NotificationType
+from app.models.shift import Shift, EmployeeShift
+from app.models.document import Document, DocumentType
+from app.models.performance import PerformanceReview
 
 __all__ = [
     "Base",
@@ -24,4 +27,9 @@ __all__ = [
     "PaymentMethod",
     "Notification",
     "NotificationType",
+    "Shift",
+    "EmployeeShift",
+    "Document",
+    "DocumentType",
+    "PerformanceReview",
 ]

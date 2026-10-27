@@ -4,8 +4,9 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export async function apiRequest(endpoint, options = {}) {
   const token = localStorage.getItem('worksphere_token');
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers || {}),
   };
 
@@ -55,6 +56,22 @@ export const authApi = {
 
 // Module 2: Employee APIs
 export const employeeApi = {
+  search: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.q) searchParams.append('q', params.q);
+    if (params.department && params.department !== 'All Departments') searchParams.append('department', params.department);
+    if (params.role && params.role !== 'All Roles') searchParams.append('role', params.role);
+    if (params.status && params.status !== 'All Statuses') searchParams.append('status', params.status);
+    if (params.attendance_status && params.attendance_status !== 'All') searchParams.append('attendance_status', params.attendance_status);
+    if (params.attendance_date) searchParams.append('attendance_date', params.attendance_date);
+    if (params.performance && params.performance !== 'All') searchParams.append('performance', params.performance);
+    if (params.sort_by) searchParams.append('sort_by', params.sort_by);
+    if (params.sort_order) searchParams.append('sort_order', params.sort_order);
+    if (params.page) searchParams.append('page', params.page);
+    if (params.page_size) searchParams.append('page_size', params.page_size);
+    const query = searchParams.toString();
+    return apiRequest(`/employees/search${query ? `?${query}` : ''}`);
+  },
   list: (params = {}) => {
     const searchParams = new URLSearchParams();
     if (params.q) searchParams.append('q', params.q);
@@ -65,6 +82,7 @@ export const employeeApi = {
     const query = searchParams.toString();
     return apiRequest(`/employees${query ? `?${query}` : ''}`);
   },
+  getAll: (params = {}) => employeeApi.list(params),
   getById: (id) => apiRequest(`/employees/${id}`),
   getMyProfile: () => apiRequest('/employees/me/profile'),
   create: (employeeData) =>
@@ -191,6 +209,33 @@ export const leaveApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  // Module 15: Leave Calendar, Team Availability & Conflict APIs
+  getCalendar: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.start_date) searchParams.append('start_date', params.start_date);
+    if (params.end_date) searchParams.append('end_date', params.end_date);
+    if (params.department && params.department !== 'ALL') searchParams.append('department', params.department);
+    if (params.employee_id) searchParams.append('employee_id', params.employee_id);
+    if (params.include_pending !== undefined) searchParams.append('include_pending', params.include_pending);
+    const query = searchParams.toString();
+    return apiRequest(`/leaves/calendar${query ? `?${query}` : ''}`);
+  },
+  getTeamAvailability: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.target_date) searchParams.append('target_date', params.target_date);
+    if (params.department && params.department !== 'ALL') searchParams.append('department', params.department);
+    const query = searchParams.toString();
+    return apiRequest(`/leaves/team-availability${query ? `?${query}` : ''}`);
+  },
+  getConflicts: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.department && params.department !== 'ALL') searchParams.append('department', params.department);
+    if (params.start_date) searchParams.append('start_date', params.start_date);
+    if (params.end_date) searchParams.append('end_date', params.end_date);
+    if (params.min_overlap) searchParams.append('min_overlap', params.min_overlap);
+    const query = searchParams.toString();
+    return apiRequest(`/leaves/conflicts${query ? `?${query}` : ''}`);
+  },
 };
 
 // Module 5: Payroll Management APIs
@@ -248,7 +293,7 @@ export const dashboardApi = {
     }),
 };
 
-// Module 7: Notifications APIs
+// Module 7 & 19: Notifications APIs
 export const notificationApi = {
   list: (params = {}) => {
     const searchParams = new URLSearchParams();
@@ -261,14 +306,20 @@ export const notificationApi = {
   },
   getUnreadCount: () => apiRequest('/notifications/unread-count'),
   getSummary: () => apiRequest('/notifications/summary'),
+  getById: (id) => apiRequest(`/notifications/${id}`),
   markRead: (id) =>
     apiRequest(`/notifications/${id}/read`, {
-      method: 'PUT',
+      method: 'PATCH',
     }),
   markAllRead: () =>
     apiRequest('/notifications/read-all', {
-      method: 'PUT',
+      method: 'PATCH',
     }),
+  delete: (id) =>
+    apiRequest(`/notifications/${id}`, {
+      method: 'DELETE',
+    }),
+  getDocumentExpiryStatus: () => apiRequest('/notifications/document-expiry-status'),
   broadcastAlert: (broadcastData) =>
     apiRequest('/notifications/broadcast', {
       method: 'POST',
@@ -316,4 +367,235 @@ export const userApi = {
       method: 'DELETE',
     }),
 };
+
+// Module 14: Shift Management APIs
+export const shiftApi = {
+  list: () => apiRequest('/shifts'),
+  getById: (id) => apiRequest(`/shifts/${id}`),
+  create: (shiftData) =>
+    apiRequest('/shifts', {
+      method: 'POST',
+      body: JSON.stringify(shiftData),
+    }),
+  update: (id, shiftData) =>
+    apiRequest(`/shifts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(shiftData),
+    }),
+  delete: (id) =>
+    apiRequest(`/shifts/${id}`, {
+      method: 'DELETE',
+    }),
+  assign: (assignmentData) =>
+    apiRequest('/shifts/assign', {
+      method: 'POST',
+      body: JSON.stringify(assignmentData),
+    }),
+  listAssignments: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.employee_id) searchParams.append('employee_id', params.employee_id);
+    if (params.shift_id) searchParams.append('shift_id', params.shift_id);
+    if (params.is_active !== undefined && params.is_active !== null && params.is_active !== 'ALL') {
+      searchParams.append('is_active', params.is_active);
+    }
+    const query = searchParams.toString();
+    return apiRequest(`/shifts/assignments${query ? `?${query}` : ''}`);
+  },
+  getEmployeeShift: (employeeId) => apiRequest(`/shifts/employee/${employeeId}`),
+  updateAssignment: (id, data) =>
+    apiRequest(`/shifts/assignments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteAssignment: (id) =>
+    apiRequest(`/shifts/assignments/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+export const documentApi = {
+  list: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.employee_id) searchParams.append('employee_id', params.employee_id);
+    if (params.document_type && params.document_type !== 'ALL') searchParams.append('document_type', params.document_type);
+    if (params.search) searchParams.append('search', params.search);
+    const query = searchParams.toString();
+    return apiRequest(`/documents${query ? `?${query}` : ''}`);
+  },
+  getSummary: (employeeId) => {
+    const query = employeeId ? `?employee_id=${employeeId}` : '';
+    return apiRequest(`/documents/summary${query}`);
+  },
+  getById: (id) => apiRequest(`/documents/${id}`),
+  upload: (formData) => {
+    return apiRequest('/documents/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+  download: async (id, fallbackName = 'document') => {
+    const token = localStorage.getItem('worksphere_token');
+    const response = await fetch(`${API_BASE}/documents/${id}/download`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Failed to download document' }));
+      throw new Error(error.detail || 'Failed to download document');
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition');
+    let filename = fallbackName;
+    if (disposition && disposition.includes('filename=')) {
+      const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+      if (matches != null && matches[1]) {
+        filename = matches[1].replace(/['"]/g, '');
+      }
+    }
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+  getViewBlobUrl: async (id) => {
+    const token = localStorage.getItem('worksphere_token');
+    const response = await fetch(`${API_BASE}/documents/${id}/view`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Failed to preview document' }));
+      throw new Error(error.detail || 'Failed to preview document');
+    }
+    const blob = await response.blob();
+    return {
+      url: window.URL.createObjectURL(blob),
+      contentType: response.headers.get('Content-Type') || blob.type,
+    };
+  },
+  delete: (id) =>
+    apiRequest(`/documents/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+export const performanceApi = {
+  list: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.employee_id) searchParams.append('employee_id', params.employee_id);
+    if (params.review_period && params.review_period !== 'ALL') searchParams.append('review_period', params.review_period);
+    if (params.rating && params.rating !== 'ALL') searchParams.append('rating', params.rating);
+    if (params.search) searchParams.append('search', params.search);
+    const query = searchParams.toString();
+    return apiRequest(`/performance${query ? `?${query}` : ''}`);
+  },
+  getSummary: (employeeId) => {
+    const query = employeeId ? `?employee_id=${employeeId}` : '';
+    return apiRequest(`/performance/summary${query}`);
+  },
+  getById: (id) => apiRequest(`/performance/${id}`),
+  getByEmployeeId: (employeeId) => apiRequest(`/performance/employee/${employeeId}`),
+  create: (reviewData) =>
+    apiRequest('/performance', {
+      method: 'POST',
+      body: JSON.stringify(reviewData),
+    }),
+  update: (id, reviewData) =>
+    apiRequest(`/performance/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(reviewData),
+    }),
+  delete: (id) =>
+    apiRequest(`/performance/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+export const advancedAnalyticsApi = {
+  getSummary: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.start_date) searchParams.append('start_date', params.start_date);
+    if (params.end_date) searchParams.append('end_date', params.end_date);
+    if (params.department && params.department !== 'ALL') searchParams.append('department', params.department);
+    const query = searchParams.toString();
+    return apiRequest(`/advanced-analytics/summary${query ? `?${query}` : ''}`);
+  },
+  getAttendanceTrends: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.start_date) searchParams.append('start_date', params.start_date);
+    if (params.end_date) searchParams.append('end_date', params.end_date);
+    if (params.department && params.department !== 'ALL') searchParams.append('department', params.department);
+    const query = searchParams.toString();
+    return apiRequest(`/advanced-analytics/attendance-trends${query ? `?${query}` : ''}`);
+  },
+  getLeaveTrends: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.start_date) searchParams.append('start_date', params.start_date);
+    if (params.end_date) searchParams.append('end_date', params.end_date);
+    if (params.department && params.department !== 'ALL') searchParams.append('department', params.department);
+    const query = searchParams.toString();
+    return apiRequest(`/advanced-analytics/leave-trends${query ? `?${query}` : ''}`);
+  },
+  getPerformanceInsights: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.start_date) searchParams.append('start_date', params.start_date);
+    if (params.end_date) searchParams.append('end_date', params.end_date);
+    if (params.department && params.department !== 'ALL') searchParams.append('department', params.department);
+    const query = searchParams.toString();
+    return apiRequest(`/advanced-analytics/performance-insights${query ? `?${query}` : ''}`);
+  },
+  getDepartmentReports: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.start_date) searchParams.append('start_date', params.start_date);
+    if (params.end_date) searchParams.append('end_date', params.end_date);
+    if (params.department && params.department !== 'ALL') searchParams.append('department', params.department);
+    const query = searchParams.toString();
+    return apiRequest(`/advanced-analytics/department-reports${query ? `?${query}` : ''}`);
+  },
+  getDepartments: () => apiRequest('/advanced-analytics/departments'),
+  exportDepartmentReportsCsv: async (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.start_date) searchParams.append('start_date', params.start_date);
+    if (params.end_date) searchParams.append('end_date', params.end_date);
+    if (params.department && params.department !== 'ALL') searchParams.append('department', params.department);
+    const query = searchParams.toString();
+    const token = localStorage.getItem('worksphere_token');
+    const response = await fetch(`${API_BASE}/advanced-analytics/department-reports/export${query ? `?${query}` : ''}`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Failed to export CSV report' }));
+      throw new Error(error.detail || 'Failed to export CSV report');
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition');
+    let filename = `WorkSphere_Department_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    if (disposition && disposition.includes('filename=')) {
+      const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+      if (matches != null && matches[1]) {
+        filename = matches[1].replace(/['"]/g, '');
+      }
+    }
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+};
+
+
+
+
 

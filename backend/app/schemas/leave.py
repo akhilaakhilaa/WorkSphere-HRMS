@@ -104,3 +104,98 @@ class LeaveBalanceInitResponse(BaseModel):
     message: str
 
 
+# -------------------------------------------------------------
+# Module 15: Leave Calendar, Team Availability & Conflict Schemas
+# -------------------------------------------------------------
+
+
+class LeaveCalendarItemResponse(BaseModel):
+    id: int
+    employee_id: int
+    employee_name: str
+    department: str
+    designation: Optional[str] = None
+    leave_type: LeaveType
+    start_date: date
+    end_date: date
+    total_days: int
+    status: LeaveStatus
+    reason: Optional[str] = None
+    is_confirmed: bool = True
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TeamAvailabilityEmployee(BaseModel):
+    employee_id: int
+    employee_name: str
+    department: str
+    designation: Optional[str] = None
+    leave_id: int
+    leave_type: LeaveType
+    start_date: date
+    end_date: date
+    total_days: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DepartmentAvailabilitySummary(BaseModel):
+    department: str
+    total_active_employees: int
+    employees_on_leave_today: int
+    employees_not_on_leave_today: int
+    coverage_rate_percentage: float
+
+
+class TeamAvailabilityUpcoming(BaseModel):
+    id: int
+    employee_id: int
+    employee_name: str
+    department: str
+    leave_type: LeaveType
+    start_date: date
+    end_date: date
+    total_days: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TeamAvailabilityResponse(BaseModel):
+    target_date: date
+    total_active_employees: int
+    employees_on_leave_today_count: int
+    employees_not_on_leave_today_count: int
+    on_leave_today: list[TeamAvailabilityEmployee]
+    upcoming_leaves: list[TeamAvailabilityUpcoming]
+    department_summaries: list[DepartmentAvailabilitySummary]
+
+
+class ConflictEmployee(BaseModel):
+    leave_id: int
+    employee_id: int
+    employee_name: str
+    department: str
+    leave_type: LeaveType
+    status: LeaveStatus
+    start_date: date
+    end_date: date
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LeaveConflictResponse(BaseModel):
+    id: str
+    department: str
+    conflict_type: str
+    severity: str  # HIGH, MEDIUM, LOW
+    start_date: date
+    end_date: date
+    total_days_overlap: int
+    employee_count: int
+    employees: list[ConflictEmployee]
+    message: str
+    recommendation: str
+
+
+

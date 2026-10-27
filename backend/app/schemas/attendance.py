@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
@@ -38,12 +38,20 @@ class AttendanceResponse(BaseModel):
     id: int
     employee_id: int
     employee_name: Optional[str] = None
+    shift_id: Optional[int] = None
+    shift_name: Optional[str] = None
+    scheduled_start: Optional[time] = None
+    scheduled_end: Optional[time] = None
     date: date
     check_in: Optional[datetime] = None
     check_out: Optional[datetime] = None
     working_hours: Optional[Decimal] = None
     overtime_hours: Decimal = Decimal("0.00")
     status: AttendanceStatus
+    is_late: bool = False
+    late_minutes: int = 0
+    is_early_departure: bool = False
+    early_departure_minutes: int = 0
     notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime

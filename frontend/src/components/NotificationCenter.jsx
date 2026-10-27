@@ -16,6 +16,9 @@ import {
   RefreshCw,
   ExternalLink,
   Megaphone,
+  Trash2,
+  FolderArchive,
+  Award,
 } from 'lucide-react';
 
 export default function NotificationCenter({ setActiveTab }) {
@@ -61,6 +64,8 @@ export default function NotificationCenter({ setActiveTab }) {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 12000); // Poll every 12 seconds
+    return () => clearInterval(interval);
   }, []);
 
   const handleMarkAsRead = async (id) => {
@@ -74,6 +79,23 @@ export default function NotificationCenter({ setActiveTab }) {
       }
     } catch (err) {
       setError('Could not mark notification as read');
+    }
+  };
+
+  const handleDeleteNotification = async (id) => {
+    try {
+      await notificationApi.delete(id);
+      const target = notifications.find((n) => n.id === id);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      if (summary) {
+        setSummary((prev) => ({
+          ...prev,
+          total: Math.max(0, prev.total - 1),
+          unread: target && !target.is_read ? Math.max(0, prev.unread - 1) : prev.unread,
+        }));
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to delete notification');
     }
   };
 
@@ -134,6 +156,10 @@ export default function NotificationCenter({ setActiveTab }) {
       setActiveTab('payroll');
     } else if (link === '/attendance' || type === 'ATTENDANCE') {
       setActiveTab('attendance');
+    } else if (link === '/documents' || type === 'DOCUMENT') {
+      setActiveTab('documents');
+    } else if (link === '/performance' || type === 'PERFORMANCE') {
+      setActiveTab('performance');
     } else {
       setActiveTab('dashboard');
     }
@@ -146,6 +172,8 @@ export default function NotificationCenter({ setActiveTab }) {
     if (activeCategory === 'LEAVE' && notif.type !== 'LEAVE') return false;
     if (activeCategory === 'PAYROLL' && notif.type !== 'PAYROLL') return false;
     if (activeCategory === 'ATTENDANCE' && notif.type !== 'ATTENDANCE') return false;
+    if (activeCategory === 'DOCUMENT' && notif.type !== 'DOCUMENT') return false;
+    if (activeCategory === 'PERFORMANCE' && notif.type !== 'PERFORMANCE') return false;
     if (activeCategory === 'SYSTEM' && notif.type !== 'SYSTEM') return false;
 
     // Search Term Filter
@@ -167,6 +195,10 @@ export default function NotificationCenter({ setActiveTab }) {
         return <CreditCard size={20} className="text-emerald-600" />;
       case 'ATTENDANCE':
         return <Clock size={20} className="text-amber-600" />;
+      case 'DOCUMENT':
+        return <FolderArchive size={20} className="text-blue-600" />;
+      case 'PERFORMANCE':
+        return <Award size={20} className="text-rose-600" />;
       case 'SYSTEM':
       default:
         return <Info size={20} className="text-indigo-600" />;
@@ -181,6 +213,10 @@ export default function NotificationCenter({ setActiveTab }) {
         return 'badge-green';
       case 'ATTENDANCE':
         return 'badge-amber';
+      case 'DOCUMENT':
+        return 'badge-blue';
+      case 'PERFORMANCE':
+        return 'badge-rose';
       case 'SYSTEM':
       default:
         return 'badge-indigo';
@@ -452,6 +488,8 @@ export default function NotificationCenter({ setActiveTab }) {
             { id: 'LEAVE', label: 'Leaves' },
             { id: 'PAYROLL', label: 'Payroll' },
             { id: 'ATTENDANCE', label: 'Attendance' },
+            { id: 'DOCUMENT', label: 'Documents' },
+            { id: 'PERFORMANCE', label: 'Performance' },
             { id: 'SYSTEM', label: 'System' },
           ].map((tab) => (
             <button
@@ -696,6 +734,28 @@ export default function NotificationCenter({ setActiveTab }) {
                       <span>Mark Read</span>
                     </button>
                   )}
+
+                  {/* Delete Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteNotification(notif.id)}
+                    style={{
+                      background: '#fee2e2',
+                      color: '#b91c1c',
+                      border: 'none',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                    title="Delete notification"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
             );

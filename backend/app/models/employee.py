@@ -52,6 +52,15 @@ class Employee(Base):
     leave_balances = relationship(
         "LeaveBalance", back_populates="employee", cascade="all, delete-orphan"
     )
+    employee_shifts = relationship(
+        "EmployeeShift", back_populates="employee", cascade="all, delete-orphan"
+    )
+    documents = relationship(
+        "Document", back_populates="employee", cascade="all, delete-orphan"
+    )
+    performance_reviews = relationship(
+        "PerformanceReview", back_populates="employee", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<Employee id={self.id} full_name={self.full_name} department={self.department}>"
