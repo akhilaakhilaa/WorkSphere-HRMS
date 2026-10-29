@@ -1,220 +1,328 @@
 WorkSphere – Human Resource Management System (HRMS)
-WorkSphere is a full-stack, web-based Human Resource Management System designed to simplify and streamline organizational HR operations. It provides a centralized platform for employee management, attendance tracking, leave management, payroll processing, analytics, notifications, and administrative user controls.
 
-The application uses React and Vite for the frontend, FastAPI for the backend, and MySQL for database management.
-Features
+WorkSphere is a full-stack web application designed to streamline common human-resource operations through a centralized platform. It brings together employee records, attendance, leave management, payroll, analytics, notifications, onboarding, task tracking, feedback, and profile settings.
+
+Repository: https://github.com/akhilaakhilaa/WorkSphere-HRMS
+
+Project status: This README describes the features documented for WorkSphere Modules 1–27. Verify the current source code, database migrations, screenshots, and test results in the repository before presenting any feature or test as independently verified.
+
+Table of Contents
+
+- Features by Phase
+
+- Technology Stack
+
+- Project Structure
+
+- Prerequisites
+
+- Installation and Setup
+
+- Environment Configuration
+
+- Running the Application
+
+- Testing
+
+- Screenshots
+
+- Security Notes
+
+- Future Improvements
+
+Features by Phase
+
 Phase 1 – Core HR Management System
-1. Authentication and Role-Based Access
-- Secure login using JWT authentication.
-- Role-based access for Employees, HR, and Administrators.
-- Protected routes and authorization checks.
-- Password hashing for secure credential storage.
-2. Employee Management
-- Create, view, update, and manage employee records.
-- View employee profiles and details.
-- Search and filter employee information.
-- Maintain employee status and organizational information.
-3. Attendance Management
-- Employee check-in and check-out.
-- Track working hours and attendance status.
-- View attendance history.
-- Access organization-wide attendance information according to user roles.
-4. Leave Management
-- Submit leave applications.
-- View leave history and application status.
-- Approve or reject leave requests based on user roles.
-- Track employee leave information.
-5. Payroll Management
-- Manage payroll records.
-- Generate payroll information.
-- View salary details and payslips.
-- Maintain employee payroll history.
-6. Dashboard and Analytics
-- Role-based dashboards.
-- Display key HR metrics and summaries.
-- Visualize organizational information through charts and analytics.
-7. Notifications and Announcements
-- View notifications and unread notification counts.
-- Mark individual notifications as read.
-- Mark all notifications as read.
-- Send organization-wide announcements through administrator functionality.
+
+Core modules
+
+- Authentication and role-based access: JWT-based login, protected routes, authorization checks, and password hashing for Employee, HR, and Admin roles.
+
+- Employee management: Create, view, update, search, and filter employee records; maintain employee status and organizational details.
+
+- Attendance management: Check-in/check-out, working-hour tracking, attendance status, and attendance history.
+
+- Leave management: Submit leave requests, view request history and status, and approve or reject requests according to role permissions.
+
+- Payroll management: Maintain payroll records, salary details, payslips, and payroll history.
+
+- Dashboard and analytics: Role-based dashboards, key HR metrics, summaries, charts, and organizational insights.
+
+- Notifications and announcements: View notifications, track unread counts, mark notifications as read, and receive announcement alerts.
+
 Phase 2 – Advanced HRMS Features
-8. Advanced Attendance and Automated Scheduler — Module 10
-- Calculate overtime based on working hours.
-- Classify attendance using working-hour thresholds.
-- Generate attendance summary metrics, including overtime hours.
-- Automatically identify employees who have not recorded attendance.
-- Schedule automated absent marking on weekdays.
-- Protect existing attendance records from being overwritten.
-- Exclude employees with approved leave.
-- Prevent absent marking on weekends and configured public holidays.
-- Reject requests involving future dates.
-- Support dry-run execution to preview absent-marking changes.
-- Provide HR/Admin controls for on-demand absent marking.
-- Display overtime information in the attendance dashboard.
-9. Leave Policies and Balances — Module 11
-- Define annual leave allowances for different leave categories.
-- Track allowed, used, and remaining leave days.
-- Display leave balances using dashboard cards and progress bars.
-- Allow authorized HR/Admin users to manage leave policies.
-- Deduct leave balances when requests are approved.
-- Prevent approvals when the employee has insufficient leave balance.
-- Restore deducted balances when an approved request is cancelled or changed to rejected.
-- Prevent pending and rejected requests from incorrectly deducting leave.
-- Protect against repeated approvals and duplicate deductions.
-- Display leave balance information during application and review.
-10. Payroll Enhancements — Module 12
-- Calculate detailed employee salary components.
-- Support basic salary, HRA, transport allowance, medical allowance, other allowances, and performance bonuses.
-- Calculate gross salary and total deductions.
-- Support tax deductions, provident fund, and other deductions.
-- Calculate net take-home salary.
-- Validate monetary values and prevent invalid salary calculations.
-- Preserve historical payroll figures when an employee's base salary changes.
-- Generate organization-level monthly payroll summaries.
-- Track payroll period status, including paid, pending, partially paid, and periods without records.
-- Provide HR/Admin payroll management and salary adjustment controls.
-- Restrict employees to their own payslips and salary breakdowns.
-- Display detailed salary breakdowns.
-- Provide printable payslips.
-11. Admin Controls and User Management — Module 13
-- Create, view, search, update, and manage user accounts.
-- Search users by username, email, or employee name.
-- Filter users by role and account status.
-- Assign roles: EMPLOYEE, HR, and ADMIN.
-- Activate and deactivate user accounts.
-- Prevent deactivated users from accessing protected API endpoints.
-- Protect user management operations with administrator-only authorization.
-- Prevent unauthorized role escalation.
-- Protect the last active administrator from accidental removal or deactivation.
-- Preserve historical attendance, leave, and payroll records.
-- Prevent deletion of accounts associated with business records.
-- Provide an administrator dashboard for user management.
-- Support account creation, editing, status changes, and account detail inspection.
-12. Shift Management — Module 14
-- Define shifts and assign them to employees.
-- Track late arrivals and early departures based on shift schedules.
-13. Leave Calendar and Team View — Module 15
-- View team leave schedules in a calendar.
-- Review team availability and identify potential leave conflicts.
-14. Document Management — Module 16
-- Upload and organize categorized employee documents.
-- Preview and download documents with access controls.
-15. Performance Reviews — Module 17
-- Manage review periods, ratings, feedback, and employee goals.
-16. Advanced Analytics and Reports — Module 18
-- Review attendance and leave trends, performance insights, and department comparisons.
-- Export supported reports to CSV.
-17. Smart Notifications — Module 19
-- Receive alerts for late attendance, leave decisions, and successful payroll processing.
-18. Advanced Employee Search — Module 20
-- Search and filter employees by name, department, role, status, attendance, and performance.
-- Sort results and navigate paginated employee lists.
+
+Note: The feature list below documents the modules currently described in this README. Modules 8 and 9 are not listed here; add them if they are part of the project's original requirements.
+
+- Module 10 – Advanced attendance and automated scheduler: Overtime calculations, working-hour classifications, scheduled absent marking, dry-run previews, and safeguards for existing attendance, approved leave, weekends, holidays, and future dates.
+
+- Module 11 – Leave policies and balances: Configure leave allowances, track allowed/used/remaining balances, validate available balances, and handle deductions/restorations for leave decisions.
+
+- Module 12 – Payroll enhancements: Salary components, allowances, bonuses, deductions, gross/net pay, monthly payroll summaries, payroll status tracking, salary adjustments, and printable payslips. Employee access is intended to be restricted to their own salary information.
+
+- Module 13 – Admin controls and user management: Create, search, update, activate, and deactivate accounts; assign roles; enforce administrator-only controls; and guard against unauthorized privilege escalation.
+
+- Module 14 – Shift management: Define and assign shifts, and track late arrivals or early departures against schedules.
+
+- Module 15 – Leave calendar and team view: View team leave schedules and availability in a calendar.
+
+- Module 16 – Document management: Upload, organize, preview, and download employee documents with access controls.
+
+- Module 17 – Performance reviews: Manage review periods, ratings, feedback, and employee goals.
+
+- Module 18 – Advanced analytics and reports: Review attendance and leave trends, performance insights, department comparisons, and supported CSV reports.
+
+- Module 19 – Smart notifications: Receive alerts for events such as late attendance, leave decisions, and payroll processing.
+
+- Module 20 – Advanced employee search: Search and filter by employee name, department, role, status, attendance, and performance; sort and paginate results.
+
+Phase 3 – Employee Lifecycle and Team Operations
+
+- Module 21 – Employee onboarding: Assign and track onboarding checklists and completion progress; provide HR/Admin overview, presets, department filters, and overdue tracking.
+
+- Module 22 – Resignation and exit management: Submit resignation requests and track status; prevent duplicate active requests, invalid transitions, and self-approval; provide an HR/Admin review dashboard.
+
+- Module 23 – Internal announcements: Publish, edit, and manage announcements with creator attribution; display newest-first announcements and details; restrict management actions to HR/Admin.
+
+- Module 24 – Task assignment and tracking: Assign tasks with descriptions and due dates; track pending/completed status and overdue tasks; provide HR/Admin filters and summaries while limiting employee access to their own assignments.
+
+Phase 4 – Integrations, Feedback, and Personal Settings
+
+- Module 25 – Third-party integrations and reports: Export supported datasets to CSV/PDF, mitigate CSV formula injection, generate iCalendar (.ics) feeds/files, and provide a configurable SMTP email utility and integration status endpoint. An iCalendar feed is not the same as a full Google Calendar OAuth synchronization.
+
+- Module 26 – Employee feedback: Submit comments with a 1–5 star rating; notify HR/Admin according to the implementation; provide a dashboard with submission count, average score, and rating distribution; restrict employees to their own submissions.
+
+- Module 27 – Profile and settings: View/update permitted profile information, change passwords with current-password verification and confirmation, and manage supported notification preferences. Privileged fields such as role and salary should not be editable through ordinary profile updates.
+
 Technology Stack
-Frontend
-- React
-- Vite
-- JavaScript
-- HTML
-- CSS
-Backend
-- Python
-- FastAPI
-- SQLAlchemy
-- Pydantic
-- JWT authentication
-- APScheduler for scheduled attendance processing
-Database
-- MySQL
-Development Tools
-- Visual Studio Code
-- MySQL Server and MySQL Workbench
-- Git and GitHub
-- Node.js and npm
-- Python virtual environment
+
+Layer   Technologies
+
+Frontend    React, Vite, JavaScript, HTML, CSS
+
+Backend Python, FastAPI, SQLAlchemy, Pydantic
+
+Authentication  JWT authentication and role-based authorization
+
+Database    MySQL
+
+Scheduling  APScheduler for scheduled attendance processing
+
+Reporting and exports   CSV, ReportLab PDF, iCalendar (.ics)
+
+Development tools   Visual Studio Code, MySQL Server, MySQL Workbench, Git, GitHub, Node.js, npm, Python virtual environment
+
 Project Structure
-The project is organized into frontend and backend components.
-WorkSphere/
+
+Illustrative structure only; filenames and folders may differ in the actual repository.
+
+WorkSphere-HRMS/
+
 ├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── models/
-│   │   ├── routers/
-│   │   └── ...
-│   ├── requirements.txt
-│   └── test_*.py
+
+│   ├── app/
+
+│   │   ├── main.py
+
+│   │   ├── models/
+
+│   │   ├── routers/
+
+│   │   └── ...
+
+│   ├── requirements.txt
+
+│   └── test_*.py
+
 ├── frontend/
-│   ├── src/
-│   ├── public/
-│   ├── package.json
-│   └── ...
+
+│   ├── src/
+
+│   ├── public/
+
+│   ├── package.json
+
+│   └── ...
+
 ├── screenshots/
-│   ├── Batch1/
-│   ├── Batch2/
-│   └── Batch3/
+
+│   ├── Phase1/       # Optional: organize screenshots by phase
+
+│   ├── Phase2/
+
+│   ├── Phase3/
+
+│   └── Phase4/
+
 ├── .gitignore
+
 └── README.md
 
-Note: This is an illustrative structure. Actual folders and filenames may vary depending on the implementation.
 Prerequisites
+
 Install the following before running the application:
+
 - Python 3.10 or later
+
 - Node.js and npm
+
 - MySQL Server
+
 - Git
+
 Installation and Setup
-1. Clone the Repository
-Replace the placeholder with your actual GitHub repository URL.
-git clone <your-repository-url>
-cd WorkSphere
-2. Configure MySQL
-Create the database:
+
+1. Clone the repository
+
+git clone https://github.com/akhilaakhilaa/WorkSphere-HRMS.git
+
+cd WorkSphere-HRMS
+
+If the checked-out folder has a different name, change into that folder instead.
+
+2. Create the database
+
+In MySQL, create the database if it does not already exist:
+
 CREATE DATABASE worksphere_db;
-Configure the required environment variables in backend/.env using your local database credentials and application settings.
 
-Important: Do not upload .env files, database passwords, JWT secrets, Stripe keys, or other sensitive credentials to GitHub.
-3. Set Up the Backend
-Open a terminal in the project root.
+Configure the database connection using the environment variables expected by the backend. Creating the database does not necessarily create all application tables; follow the actual migration or table-initialization instructions in the repository.
+
+Environment Configuration
+
+Create a local backend/.env file with the environment variables required by the project. Use the actual names expected by the code. Typical settings may include:
+
+- Database connection URL or individual database connection fields
+
+- JWT/application secret
+
+- SMTP configuration, if email delivery is enabled
+
+For Module 25, the documented SMTP settings are:
+
+Variable    Purpose
+
+SMTP_HOST   SMTP server hostname
+
+SMTP_PORT   SMTP server port
+
+SMTP_USER   SMTP username
+
+SMTP_PASSWORD   SMTP password
+
+SMTP_FROM   Sender email address
+
+SMTP_TLS    TLS configuration
+
+EMAIL_DEV_MODE  Simulated email delivery in development, if supported by the application
+
+Use development mode for local testing when configured. Simulated delivery does not prove that a real email was sent. Optional integrations should only be configured if the implementation supports them.
+
+Never commit .env files, database passwords, JWT secrets, SMTP passwords, API keys, or other credentials to GitHub. Do not place secrets in frontend code or screenshots.
+
+Running the Application
+
+Backend
+
+Open a terminal in the repository root:
+
 cd backend
+
 python -m venv venv
+
 .\venv\Scripts\Activate.ps1
+
 pip install -r requirements.txt
-Start the FastAPI development server:
+
+Apply the database initialization/migration steps documented by the actual repository, then start FastAPI:
+
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-Backend URL:
 
-http://127.0.0.1:8000
+- Backend: http://127.0.0.1:8000
 
-API documentation:
+- Interactive API documentation: http://127.0.0.1:8000/docs
 
-http://127.0.0.1:8000/docs
-4. Set Up the Frontend
-Open a second terminal in the project root.
+Frontend
+
+Open a second terminal in the repository root:
+
 cd frontend
+
 npm install
+
 npm run dev
-Open the local frontend URL displayed in the terminal. Vite commonly uses:
 
-http://localhost:5173
+Open the local URL printed by Vite (commonly http://localhost:5173). Make sure the frontend API configuration points to the running backend.
 
-Ensure the frontend API configuration points to the running backend.
 Testing
-The project includes automated test suites for the implemented modules.
 
-Reported test files include:
-Test File	Coverage
-backend/test_batch1.py	Authentication, employee management, and basic attendance
-backend/test_batch2.py	Leave management, payroll, dashboard, and analytics
-backend/test_batch3.py	Notifications and announcements
-backend/test_module10.py	Advanced attendance, overtime, automated absent marking, and safeguards
-backend/test_module11.py	Leave policies, balances, approval deductions, and balance validation
-backend/test_module12.py	Salary breakdown, monthly payroll summaries, validation, and payroll authorization
-backend/test_module13.py	User management, role assignment, account status, authorization, and safeguards
+Automated test files are useful for verifying behavior, permissions, validation, and data isolation. The table below reflects test files previously documented for this project; confirm each file exists and run it before claiming that its tests pass.
 
+Test file   Intended coverage described in the project
 
-Run the appropriate test file using the backend virtual environment. For example:
-cd backend
-.\venv\Scripts\python.exe test_module13.py
-Use the actual test files available in the repository. Run the relevant test suites before considering a release complete.
+test_batch1.py  Authentication, employee management, basic attendance
+
+test_batch2.py  Leave management, payroll, dashboard, analytics
+
+test_batch3.py  Notifications and announcements
+
+test_module10.py    Advanced attendance, overtime, absent-marking safeguards
+
+test_module11.py    Leave policies, balances, approval deductions, validation
+
+test_module12.py    Salary breakdown, payroll summaries, validation, authorization
+
+test_module13.py    User management, roles, account status, authorization
+
+test_module14.py    Shift management, grace periods, late-arrival tracking
+
+test_module15.py    Leave calendar, team views, scheduling, overlap prevention
+
+test_module16.py    Document management, file validation, access isolation
+
+test_module17.py    Performance management, rating validation, review periods
+
+test_module18.py    Analytics, department trends, CSV reports
+
+test_module19.py    Smart notifications, event alerts, unread badge synchronization
+
+test_module20.py    Employee search, filters, sorting, pagination
+
+test_module21.py    Onboarding checklists, progress tracking, HR task administration
+
+test_module22.py    Resignation workflow, self-approval prevention, status guards
+
+test_module23.py    Announcements, creator attribution, notifications, permissions
+
+test_module24.py    Task assignment, employee isolation, status updates, summaries
+
+test_module25.py    Integrations, SMTP status, calendar export, CSV/PDF exports, RBAC
+
+test_module26.py    Feedback submission, rating validation, privacy, HR/Admin metrics
+
+test_module27.py    Profile access, privilege protection, password verification, preferences
+
+Run only the test commands supported by the actual project. For example, from the backend directory, a project using directly executable test files may support:
+
+.\venv\Scripts\python.exe test_module27.py
+
+If the project uses pytest, use the test command and configuration specified by the repository. Run relevant backend tests and check the frontend production build:
+
+cd frontend
+
+npm run build
+
+Record actual results rather than assuming a test passed because a test file exists.
+
 Screenshots
-Screenshots demonstrating the application's features and functionality are attached with the project for reference.
+
+Screenshots are stored in the screenshots/ directory.
+Security Notes
+- Do not commit sensitive credentials or .env files to the repository.
+- Verify backend authentication, role-based authorization, and record-ownership checks.
+- Restrict access to sensitive employee and payroll data.
+- Store SMTP credentials securely and configure them only when needed.
+Future Enhancements
+- Integrate additional third-party services.
+- Expand automated testing and accessibility checks.
+- Add deployment automation and application monitoring.
