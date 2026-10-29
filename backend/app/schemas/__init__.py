@@ -102,6 +102,50 @@ from app.schemas.advanced_analytics import (
     PerformanceInsightsResponse,
     DepartmentReportItem,
 )
+from app.schemas.onboarding import (
+    OnboardingTaskBase,
+    OnboardingTaskCreate,
+    OnboardingTaskUpdate,
+    OnboardingTaskStatusUpdate,
+    OnboardingTaskResponse,
+    OnboardingProgressResponse,
+    OnboardingSummaryResponse,
+)
+from app.schemas.resignation import (
+    ResignationBase,
+    ResignationCreate,
+    ResignationReview,
+    ResignationResponse,
+    ResignationSummary,
+)
+from app.schemas.announcement import (
+    AnnouncementBase,
+    AnnouncementCreate,
+    AnnouncementUpdate,
+    AnnouncementResponse,
+)
+from app.schemas.task import (
+    TaskBase,
+    TaskCreate,
+    TaskUpdate,
+    TaskStatusUpdate,
+    TaskResponse,
+    TaskSummary,
+)
+from app.schemas.feedback import (
+    FeedbackCreate,
+    FeedbackEmployeeInfo,
+    FeedbackResponse,
+    RatingCount,
+    FeedbackSummary,
+)
+from app.schemas.profile import (
+    ProfileResponse,
+    ProfileUpdate,
+    ChangePasswordRequest,
+    NotificationPreferenceResponse,
+    NotificationPreferenceUpdate,
+)
 
 __all__ = [
     "UserBase",
@@ -179,4 +223,36 @@ __all__ = [
     "LeaveTrendItem",
     "PerformanceInsightsResponse",
     "DepartmentReportItem",
+    "OnboardingTaskBase",
+    "OnboardingTaskCreate",
+    "OnboardingTaskUpdate",
+    "OnboardingTaskStatusUpdate",
+    "OnboardingTaskResponse",
+    "OnboardingProgressResponse",
+    "OnboardingSummaryResponse",
+    "ResignationBase",
+    "ResignationCreate",
+    "ResignationReview",
+    "ResignationResponse",
+    "ResignationSummary",
+    "AnnouncementBase",
+    "AnnouncementCreate",
+    "AnnouncementUpdate",
+    "AnnouncementResponse",
+    "TaskBase",
+    "TaskCreate",
+    "TaskUpdate",
+    "TaskStatusUpdate",
+    "TaskResponse",
+    "TaskSummary",
+    "FeedbackCreate",
+    "FeedbackEmployeeInfo",
+    "FeedbackResponse",
+    "RatingCount",
+    "FeedbackSummary",
+    "ProfileResponse",
+    "ProfileUpdate",
+    "ChangePasswordRequest",
+    "NotificationPreferenceResponse",
+    "NotificationPreferenceUpdate",
 ]

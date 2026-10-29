@@ -19,6 +19,11 @@ import {
   FolderArchive,
   Award,
   BarChart3,
+  UserCheck,
+  Megaphone,
+  ListTodo,
+  FileSpreadsheet,
+  MessageSquare,
 } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab }) {
@@ -91,6 +96,18 @@ export default function Navbar({ activeTab, setActiveTab }) {
       setActiveTab('documents');
     } else if (notif.link === '/performance' || notif.type === 'PERFORMANCE') {
       setActiveTab('performance');
+    } else if (notif.link === '/onboarding' || notif.type === 'ONBOARDING') {
+      setActiveTab('onboarding');
+    } else if (notif.link === '/resignations' || notif.type === 'RESIGNATION') {
+      setActiveTab('resignations');
+    } else if (notif.link === '/announcements' || notif.type === 'ANNOUNCEMENT') {
+      setActiveTab('announcements');
+    } else if (notif.link === '/tasks' || notif.type === 'TASK') {
+      setActiveTab('tasks');
+    } else if (notif.link === '/feedback' || notif.type === 'FEEDBACK') {
+      setActiveTab('feedback');
+    } else if (notif.link === '/reports') {
+      setActiveTab('reports');
     } else if (notif.link === '/attendance' || notif.type === 'ATTENDANCE') {
       setActiveTab('attendance');
     } else {
@@ -228,6 +245,60 @@ export default function Navbar({ activeTab, setActiveTab }) {
           >
             <Award size={18} />
             <span>Performance</span>
+          </button>
+
+          <button
+            type="button"
+            className={`nav-link ${activeTab === 'onboarding' ? 'active' : ''}`}
+            onClick={() => setActiveTab('onboarding')}
+          >
+            <UserCheck size={18} />
+            <span>Onboarding</span>
+          </button>
+
+          <button
+            type="button"
+            className={`nav-link ${activeTab === 'resignations' ? 'active' : ''}`}
+            onClick={() => setActiveTab('resignations')}
+          >
+            <LogOut size={18} />
+            <span>Resignations</span>
+          </button>
+
+          <button
+            type="button"
+            className={`nav-link ${activeTab === 'announcements' ? 'active' : ''}`}
+            onClick={() => setActiveTab('announcements')}
+          >
+            <Megaphone size={18} />
+            <span>Announcements</span>
+          </button>
+
+          <button
+            type="button"
+            className={`nav-link ${activeTab === 'tasks' ? 'active' : ''}`}
+            onClick={() => setActiveTab('tasks')}
+          >
+            <ListTodo size={18} />
+            <span>Tasks</span>
+          </button>
+
+          <button
+            type="button"
+            className={`nav-link ${activeTab === 'reports' ? 'active' : ''}`}
+            onClick={() => setActiveTab('reports')}
+          >
+            <FileSpreadsheet size={18} />
+            <span>Reports</span>
+          </button>
+
+          <button
+            type="button"
+            className={`nav-link ${activeTab === 'feedback' ? 'active' : ''}`}
+            onClick={() => setActiveTab('feedback')}
+          >
+            <MessageSquare size={18} />
+            <span>Feedback</span>
           </button>
 
           {(role === 'HR' || role === 'ADMIN') && (

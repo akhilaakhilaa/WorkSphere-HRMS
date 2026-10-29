@@ -27,6 +27,13 @@ from app.routers import (
     documents_router,
     performance_router,
     advanced_analytics_router,
+    onboarding_router,
+    resignation_router,
+    announcements_router,
+    tasks_router,
+    integrations_router,
+    feedback_router,
+    profile_router,
 )
 
 
@@ -131,6 +138,13 @@ app.include_router(shifts_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
 app.include_router(performance_router, prefix="/api")
 app.include_router(advanced_analytics_router, prefix="/api")
+app.include_router(onboarding_router, prefix="/api")
+app.include_router(resignation_router, prefix="/api")
+app.include_router(announcements_router, prefix="/api")
+app.include_router(tasks_router, prefix="/api")
+app.include_router(integrations_router, prefix="/api")
+app.include_router(feedback_router, prefix="/api")
+app.include_router(profile_router, prefix="/api")
 
 
 @app.get("/")

@@ -61,6 +61,18 @@ class Employee(Base):
     performance_reviews = relationship(
         "PerformanceReview", back_populates="employee", cascade="all, delete-orphan"
     )
+    onboarding_tasks = relationship(
+        "OnboardingTask", back_populates="employee", cascade="all, delete-orphan"
+    )
+    resignations = relationship(
+        "Resignation", back_populates="employee", cascade="all, delete-orphan"
+    )
+    tasks = relationship(
+        "Task", foreign_keys="Task.assigned_to", back_populates="assigned_employee", cascade="all, delete-orphan"
+    )
+    feedbacks = relationship(
+        "Feedback", back_populates="employee", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<Employee id={self.id} full_name={self.full_name} department={self.department}>"

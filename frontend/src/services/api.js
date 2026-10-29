@@ -595,6 +595,237 @@ export const advancedAnalyticsApi = {
   },
 };
 
+// Module 21: Employee Onboarding APIs
+export const onboardingApi = {
+  list: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.employee_id) searchParams.append('employee_id', params.employee_id);
+    if (params.status && params.status !== 'ALL') searchParams.append('status', params.status);
+    if (params.overdue_only !== undefined) searchParams.append('overdue_only', params.overdue_only);
+    const query = searchParams.toString();
+    return apiRequest(`/onboarding${query ? `?${query}` : ''}`);
+  },
+  getByEmployee: (employeeId) => apiRequest(`/onboarding/employee/${employeeId}`),
+  getMyProgress: () => apiRequest('/onboarding/progress'),
+  getProgressByEmployee: (employeeId) => apiRequest(`/onboarding/progress/${employeeId}`),
+  getAllProgress: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.department && params.department !== 'All Departments') {
+      searchParams.append('department', params.department);
+    }
+    const query = searchParams.toString();
+    return apiRequest(`/onboarding/progress/all${query ? `?${query}` : ''}`);
+  },
+  getSummary: () => apiRequest('/onboarding/summary'),
+  create: (taskData) =>
+    apiRequest('/onboarding', {
+      method: 'POST',
+      body: JSON.stringify(taskData),
+    }),
+  updateStatus: (taskId, status) =>
+    apiRequest(`/onboarding/${taskId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  update: (taskId, taskData) =>
+    apiRequest(`/onboarding/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify(taskData),
+    }),
+  delete: (taskId) =>
+    apiRequest(`/onboarding/${taskId}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Module 22: Resignation & Exit Management APIs
+export const resignationApi = {
+  submit: (data) =>
+    apiRequest('/resignations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getMy: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.status && params.status !== 'ALL') searchParams.append('status', params.status);
+    const query = searchParams.toString();
+    return apiRequest(`/resignations/my${query ? `?${query}` : ''}`);
+  },
+  list: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.status && params.status !== 'ALL') searchParams.append('status', params.status);
+    if (params.employee_id) searchParams.append('employee_id', params.employee_id);
+    if (params.skip) searchParams.append('skip', params.skip);
+    if (params.limit) searchParams.append('limit', params.limit);
+    const query = searchParams.toString();
+    return apiRequest(`/resignations${query ? `?${query}` : ''}`);
+  },
+  getById: (id) => apiRequest(`/resignations/${id}`),
+  getSummary: (employeeId = null) => {
+    const query = employeeId ? `?employee_id=${employeeId}` : '';
+    return apiRequest(`/resignations/summary${query}`);
+  },
+  review: (id, reviewData) =>
+    apiRequest(`/resignations/${id}/review`, {
+      method: 'PATCH',
+      body: JSON.stringify(reviewData),
+    }),
+  cancel: (id) =>
+    apiRequest(`/resignations/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Module 23: Internal Announcements APIs
+export const announcementApi = {
+  list: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.search) searchParams.append('search', params.search);
+    if (params.skip) searchParams.append('skip', params.skip);
+    if (params.limit) searchParams.append('limit', params.limit);
+    const query = searchParams.toString();
+    return apiRequest(`/announcements${query ? `?${query}` : ''}`);
+  },
+  getById: (id) => apiRequest(`/announcements/${id}`),
+  create: (data) =>
+    apiRequest('/announcements', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id, data) =>
+    apiRequest(`/announcements/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id) =>
+    apiRequest(`/announcements/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Module 24: Task Assignment & Tracking APIs
+export const taskApi = {
+  list: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.assigned_to) searchParams.append('assigned_to', params.assigned_to);
+    if (params.status && params.status !== 'ALL') searchParams.append('status', params.status);
+    if (params.due_date) searchParams.append('due_date', params.due_date);
+    if (params.overdue_only !== undefined) searchParams.append('overdue_only', params.overdue_only);
+    if (params.search) searchParams.append('search', params.search);
+    if (params.skip) searchParams.append('skip', params.skip);
+    if (params.limit) searchParams.append('limit', params.limit);
+    const query = searchParams.toString();
+    return apiRequest(`/tasks${query ? `?${query}` : ''}`);
+  },
+  getById: (id) => apiRequest(`/tasks/${id}`),
+  getSummary: (employeeId = null) => {
+    const query = employeeId ? `?employee_id=${employeeId}` : '';
+    return apiRequest(`/tasks/summary${query}`);
+  },
+  assign: (data) =>
+    apiRequest('/tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateStatus: (id, status) =>
+    apiRequest(`/tasks/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  update: (id, data) =>
+    apiRequest(`/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id) =>
+    apiRequest(`/tasks/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Generic File Downloader for Exports & Calendars
+export async function downloadFile(endpoint, defaultFilename = 'download') {
+  const token = localStorage.getItem('worksphere_token');
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const response = await fetch(`${API_BASE}${endpoint}`, { headers });
+  if (!response.ok) {
+    const errorText = await response.text();
+    let message = 'Failed to download file';
+    try {
+      const errJson = JSON.parse(errorText);
+      message = errJson.detail || message;
+    } catch (e) {
+      if (errorText) message = errorText;
+    }
+    throw new Error(message);
+  }
+
+  const contentDisposition = response.headers.get('content-disposition');
+  let filename = defaultFilename;
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (match && match[1]) {
+      filename = match[1].replace(/['"]/g, '');
+    }
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+// Module 25: Third-Party Integrations & Reports APIs
+export const integrationApi = {
+  getStatus: () => apiRequest('/integrations/status'),
+  getCalendarEvents: () => apiRequest('/calendar/events'),
+  exportCalendarIcs: () => downloadFile('/calendar/export.ics', 'worksphere_schedule.ics'),
+  exportReport: (reportType, format = 'csv') =>
+    downloadFile(`/exports/${reportType}?format=${format}`, `worksphere_${reportType}.${format}`),
+};
+
+// Module 26: Employee Feedback APIs
+export const feedbackApi = {
+  submit: (data) =>
+    apiRequest('/feedback', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  list: () => apiRequest('/feedback'),
+  getSummary: () => apiRequest('/feedback/summary'),
+  getById: (id) => apiRequest(`/feedback/${id}`),
+};
+
+// Module 27: Profile & Settings APIs
+export const profileApi = {
+  getMe: () => apiRequest('/profile/me'),
+  updateMe: (data) =>
+    apiRequest('/profile/me', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  changePassword: (data) =>
+    apiRequest('/profile/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getPreferences: () => apiRequest('/profile/preferences'),
+  updatePreferences: (data) =>
+    apiRequest('/profile/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+};
+
+
+
 
 
 

@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session
 
 from app.models.notification import Notification, NotificationType
 from app.models.user import User, UserRole
+from app.models.preference import UserNotificationPreference
+from app.services.email_service import send_email
 
 logger = logging.getLogger("worksphere.notifications")
 
@@ -31,8 +33,33 @@ def notify_user(
     Creates a notification record for a specific recipient user.
     Includes smart deduplication to prevent repetitive notifications for
     the same business event or entity.
+    Respects user notification preferences and sends emails if enabled.
     """
     try:
+        # Check user notification preferences
+        pref = (
+            db.query(UserNotificationPreference)
+            .filter(UserNotificationPreference.user_id == user_id)
+            .first()
+        )
+        if pref:
+            if not pref.in_app_enabled:
+                if pref.email_enabled:
+                    u = db.query(User).filter(User.id == user_id).first()
+                    if u and u.email:
+                        send_email(to_email=u.email, subject=title, body_text=message)
+                return None
+            if notif_type == NotificationType.LEAVE and not pref.notify_leaves:
+                return None
+            if notif_type == NotificationType.ATTENDANCE and not pref.notify_attendance:
+                return None
+            if notif_type == NotificationType.PAYROLL and not pref.notify_payroll:
+                return None
+            if not pref.notify_tasks and ("task" in title.lower() or "task" in message.lower()):
+                return None
+            if not pref.notify_announcements and ("announcement" in title.lower() or "announcement" in message.lower()):
+                return None
+
         if prevent_duplicate:
             dup_query = db.query(Notification).filter(
                 Notification.user_id == user_id,
@@ -61,6 +88,13 @@ def notify_user(
             related_entity_id=related_entity_id,
         )
         db.add(notif)
+
+        # Trigger email if enabled
+        if pref is None or pref.email_enabled:
+            u = db.query(User).filter(User.id == user_id).first()
+            if u and u.email:
+                send_email(to_email=u.email, subject=title, body_text=message)
+
         return notif
     except Exception as e:
         logger.error(f"[Notifications] Failed to create notification for user {user_id}: {e}")
